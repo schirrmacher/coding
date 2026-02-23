@@ -65,6 +65,12 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
    - What the problem is
    - Severity: `blocking` (must fix) or `suggestion` (nice to have)
 
+   **Failure analysis** (if the user provided test output or error messages): Parse the failure information from the conversation. For each failing test:
+   - Test name and file
+   - The assertion that failed, extracted from the user-provided output
+   - **Theory**: A reasoned hypothesis of the root cause — read the source code at the failing location and trace backward through the code path to explain why the actual result diverged from the expected one
+   - **Confidence**: high / medium / low
+
    **Recommendation**: Concrete next steps — either "tests are solid" or a numbered list of fixes.
 
 5. **Changes table**: End with a compact before/after summary:
