@@ -1,0 +1,42 @@
+[user]
+    name = Marvin Schirrmacher
+[color]
+    ui = auto
+[core]
+    editor = "nano --fill=60"
+    ignorecase = false
+	excludesFile = ~/.gitignore
+[push]
+    default = simple
+[alias]
+    a = add
+    aa = add .
+    ap = add -p
+    ag = "!add_grep() { for param in "$@"; do git add $(git ls-files -o -m --exclude-standard | grep "$param"); done }; add_grep"
+    amend = commit --amend
+    b = "!git --no-pager branch -vv"
+    ch = checkout
+    cht = checkout --track -b
+    chg = "!checkout_grep() { for param in "$@"; do git checkout $(git ls-files -o -m --exclude-standard | grep "$param"); done }; checkout_grep"
+    com = "!commit_message() { git commit -m \""$*"\"; }; commit_message"
+    cp = cherry-pick
+    d = diff
+    dc = diff --cached
+    dg = "!diff_grep() { for param in "$@"; do git diff $(git ls-files -o -m --exclude-standard | grep "$param"); done }; diff_grep"
+    fa = fetch --all
+    l = "!git --no-pager log --oneline  --abbrev-commit -20 --date=format:'%a %d-%m %H:%M' --pretty=format:'%C(yellow)%h%Creset%C(red)%d%Creset %s'"
+    ll = "!git --no-pager log --oneline  --abbrev-commit -30 --date=format:'%a %d-%m %H:%M' --pretty=format:'%C(yellow)%h%Creset%C(red)%d%Creset %s %C(yellow)%an %C(red)%ad %Creset'"
+    lll = "!git --no-pager log --oneline  --abbrev-commit -100 --date=format:'%a %d-%m %H:%M' --pretty=format:'%C(yellow)%h%Creset%C(red)%d%Creset %s %C(yellow)%an %C(red)%ad %Creset'"
+    llll = "!git --no-pager log --oneline  --abbrev-commit --date=format:'%a %d-%m %H:%M' --pretty=format:'%C(yellow)%h%Creset%C(red)%d%Creset %s %C(yellow)%an %C(red)%ad %Creset'"
+    r = reset
+    rh = reset --hard
+    rg = "!reset_grep() { for param in "$@"; do git reset $(git ls-files -c | grep "$param"); done }; reset_grep"
+    reb = rebase -i
+    reba = rebase --abort
+    rebc = rebase --continue
+    s = status
+    sh = show
+    shn = "!git --no-pager show --name-only"
+    c = clean -df
+[credential]
+	helper = store
