@@ -30,6 +30,7 @@
     llll = "!git --no-pager log --oneline  --abbrev-commit --date=format:'%a %d-%m %H:%M' --pretty=format:'%C(yellow)%h%Creset%C(red)%d%Creset %s %C(yellow)%an %C(red)%ad %Creset'"
     r = reset
     rh = reset --hard
+    rhard = "!f() { git fetch --all && git reset --hard origin/$(git symbolic-ref refs/remotes/origin/HEAD --short | sed 's|origin/||'); }; f"
     rg = "!f() { for p in \"$@\"; do git ls-files -c | grep \"$p\" | tr '\\n' '\\0' | xargs -0 git reset; done; }; f"
     reb = rebase -i
     reba = rebase --abort
