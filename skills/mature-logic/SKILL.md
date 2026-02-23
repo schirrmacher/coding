@@ -3,17 +3,17 @@ name: mature-logic
 description: Evaluate the maturity of logic, separation of concerns, and edge case handling in recent changes. Use when reviewing whether business logic is well-structured, properly isolated, and handles all cases.
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Bash(git diff *), Bash(git log *)
+allowed-tools: Read, Grep, Glob
 argument-hint: [file-or-scope]
 ---
 
 Evaluate the maturity of **logic, separation of concerns, and edge case handling** in recent changes.
 
-If `$ARGUMENTS` is provided, scope the review to those files or directories. Otherwise, review all changes made in this session by inspecting the git diff against the base branch.
+If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
 ## Steps
 
-1. **Gather context**: Read the changed files. Use `git diff` and `git log` to identify what was modified. Then read surrounding code to understand what each function/component is responsible for.
+1. **Gather context**: Read the files in scope. Read surrounding code to understand what each function/component is responsible for.
 
 2. **Map responsibilities**: For each changed file or function, identify:
    - What is its single responsibility? Can you state it in one sentence?

@@ -3,17 +3,17 @@ name: mature-dataflow
 description: Evaluate the maturity of data flow through the application in recent changes. Use when reviewing how data moves between components, layers, and systems to ensure it is clean and traceable.
 user-invocable: true
 disable-model-invocation: true
-allowed-tools: Read, Grep, Glob, Bash(git diff *), Bash(git log *)
+allowed-tools: Read, Grep, Glob
 argument-hint: [file-or-scope]
 ---
 
 Evaluate the maturity of **data flow** through the application in recent changes.
 
-If `$ARGUMENTS` is provided, scope the review to those files or directories. Otherwise, review all changes made in this session by inspecting the git diff against the base branch.
+If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
 ## Steps
 
-1. **Gather context**: Read the changed files. Use `git diff` and `git log` to identify what was modified. Then trace the full path of data — from where it originates to where it is consumed or rendered.
+1. **Gather context**: Read the files in scope. Trace the full path of data — from where it originates to where it is consumed or rendered.
 
 2. **Trace data flow**: For each significant piece of data introduced or modified, map:
    - **Source**: Where does the data come from? (user input, API response, database, props, context, URL params, local state, environment)
