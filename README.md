@@ -17,6 +17,7 @@ Symlinks skills and gitignore, includes gitconfig. `user.email` stays local.
 | `/mature-logic` | Separation of concerns, correctness, edge cases |
 | `/mature-performance` | Efficiency, resource management, scalability |
 | `/mature-testing` | Public API coverage, behavior-driven tests, naming |
+| `/handover` | Create a handover doc for another agent to pick up work |
 
 ## Git
 
