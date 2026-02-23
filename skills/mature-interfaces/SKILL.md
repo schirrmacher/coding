@@ -1,13 +1,13 @@
 ---
 name: mature-interfaces
-description: Evaluate the maturity of data structures, APIs, and interfaces in recent changes. Use when reviewing whether types, contracts, and boundaries between modules are production-ready.
+description: Evaluate the maturity of data structures, APIs, and interfaces. Use when reviewing whether types, contracts, and boundaries between modules are production-ready.
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob
 argument-hint: [file-or-scope]
 ---
 
-Evaluate the maturity of **data structures, APIs, and interfaces** in recent changes.
+Evaluate the maturity of **data structures, APIs, and interfaces**.
 
 If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
@@ -15,7 +15,7 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
 1. **Gather context**: Read the files in scope. Trace outward — find all types, interfaces, and data structures they touch or depend on.
 
-2. **Map the interface surface**: For each changed file, identify:
+2. **Map the interface surface**: For each file, identify:
    - Type definitions and interfaces it exports or consumes
    - Props types, function signatures, return types
    - API contracts (request/response shapes, route params, query params)
@@ -30,8 +30,8 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
    - Are there type assertions (`as`) that bypass the type system instead of fixing the real issue?
 
    ### Interface contracts
-   - Do the changed interfaces align with how they are actually used across the codebase?
-   - Are there breaking changes to existing interfaces without updating all consumers?
+   - Do interfaces align with how they are actually used across the codebase?
+   - Are there inconsistencies between interfaces and their consumers?
    - Are new interfaces consistent with naming and shape conventions already in use?
    - Do function signatures match what callers actually pass?
 
@@ -55,7 +55,7 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
    **Summary**: 1-2 sentences on the state of interfaces and data structures.
 
-   **Interface map**: Brief list of the key types/interfaces touched and their relationships.
+   **Interface map**: Brief list of the key types/interfaces and their relationships.
 
    **Issues** (if any): List each issue with:
    - File and line reference

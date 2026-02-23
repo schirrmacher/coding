@@ -1,13 +1,13 @@
 ---
 name: mature-dataflow
-description: Evaluate the maturity of data flow through the application in recent changes. Use when reviewing how data moves between components, layers, and systems to ensure it is clean and traceable.
+description: Evaluate the maturity of data flow through the application. Use when reviewing how data moves between components, layers, and systems to ensure it is clean and traceable.
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob
 argument-hint: [file-or-scope]
 ---
 
-Evaluate the maturity of **data flow** through the application in recent changes.
+Evaluate the maturity of **data flow** through the application.
 
 If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
@@ -15,7 +15,7 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
 1. **Gather context**: Read the files in scope. Trace the full path of data — from where it originates to where it is consumed or rendered.
 
-2. **Trace data flow**: For each significant piece of data introduced or modified, map:
+2. **Trace data flow**: For each significant piece of data, map:
    - **Source**: Where does the data come from? (user input, API response, database, props, context, URL params, local state, environment)
    - **Transformations**: What happens to the data between source and destination? (parsing, mapping, filtering, enrichment, serialization)
    - **Destination**: Where does the data end up? (rendered in UI, sent to API, written to storage, passed as props, emitted as event)
@@ -55,7 +55,7 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
    **Summary**: 1-2 sentences on the state of data flow.
 
-   **Flow diagram**: A text-based diagram showing the primary data paths touched by the changes, e.g.:
+   **Flow diagram**: A text-based diagram showing the primary data paths, e.g.:
    ```
    API response → useFetch hook → ParentComponent (state) → ChildComponent (props) → render
    ```

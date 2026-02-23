@@ -1,13 +1,13 @@
 ---
 name: mature-logic
-description: Evaluate the maturity of logic, separation of concerns, and edge case handling in recent changes. Use when reviewing whether business logic is well-structured, properly isolated, and handles all cases.
+description: Evaluate the maturity of logic, separation of concerns, and edge case handling. Use when reviewing whether business logic is well-structured, properly isolated, and handles all cases.
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob
 argument-hint: [file-or-scope]
 ---
 
-Evaluate the maturity of **logic, separation of concerns, and edge case handling** in recent changes.
+Evaluate the maturity of **logic, separation of concerns, and edge case handling**.
 
 If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
@@ -15,7 +15,7 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
 1. **Gather context**: Read the files in scope. Read surrounding code to understand what each function/component is responsible for.
 
-2. **Map responsibilities**: For each changed file or function, identify:
+2. **Map responsibilities**: For each file or function, identify:
    - What is its single responsibility? Can you state it in one sentence?
    - What decisions (branching logic) does it make?
    - What are the possible inputs and their ranges?
@@ -59,7 +59,7 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
    **Summary**: 1-2 sentences on the state of logic and separation of concerns.
 
-   **Responsibility map**: Brief list of each changed function/component and its identified responsibility.
+   **Responsibility map**: Brief list of each function/component and its identified responsibility.
 
    **Issues** (if any): List each issue with:
    - File and line reference

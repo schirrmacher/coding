@@ -1,13 +1,13 @@
 ---
 name: mature-performance
-description: Evaluate the maturity of performance characteristics in recent changes. Use when reviewing whether code is efficient, avoids unnecessary work, and scales appropriately.
+description: Evaluate the maturity of performance characteristics. Use when reviewing whether code is efficient, avoids unnecessary work, and scales appropriately.
 user-invocable: true
 disable-model-invocation: true
 allowed-tools: Read, Grep, Glob
 argument-hint: [file-or-scope]
 ---
 
-Evaluate the maturity of **performance characteristics** in recent changes.
+Evaluate the maturity of **performance characteristics**.
 
 If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
