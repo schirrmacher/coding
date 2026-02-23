@@ -12,17 +12,17 @@
     a = add
     aa = add .
     ap = add -p
-    ag = "!add_grep() { for param in "$@"; do git add $(git ls-files -o -m --exclude-standard | grep "$param"); done }; add_grep"
+    ag = "!f() { for p in \"$@\"; do git ls-files -o -m --exclude-standard | grep \"$p\" | tr '\\n' '\\0' | xargs -0 git add; done; }; f"
     amend = commit --amend
     b = "!git --no-pager branch -vv"
     ch = checkout
     cht = checkout --track -b
-    chg = "!checkout_grep() { for param in "$@"; do git checkout $(git ls-files -o -m --exclude-standard | grep "$param"); done }; checkout_grep"
-    com = "!commit_message() { git commit -m \""$*"\"; }; commit_message"
+    chg = "!f() { for p in \"$@\"; do git ls-files -o -m --exclude-standard | grep \"$p\" | tr '\\n' '\\0' | xargs -0 git checkout; done; }; f"
+    com = "!f() { git commit -m \"$*\"; }; f"
     cp = cherry-pick
     d = diff
     dc = diff --cached
-    dg = "!diff_grep() { for param in "$@"; do git diff $(git ls-files -o -m --exclude-standard | grep "$param"); done }; diff_grep"
+    dg = "!f() { for p in \"$@\"; do git ls-files -o -m --exclude-standard | grep \"$p\" | tr '\\n' '\\0' | xargs -0 git diff; done; }; f"
     fa = fetch --all
     l = "!git --no-pager log --oneline  --abbrev-commit -20 --date=format:'%a %d-%m %H:%M' --pretty=format:'%C(yellow)%h%Creset%C(red)%d%Creset %s'"
     ll = "!git --no-pager log --oneline  --abbrev-commit -30 --date=format:'%a %d-%m %H:%M' --pretty=format:'%C(yellow)%h%Creset%C(red)%d%Creset %s %C(yellow)%an %C(red)%ad %Creset'"
@@ -30,7 +30,7 @@
     llll = "!git --no-pager log --oneline  --abbrev-commit --date=format:'%a %d-%m %H:%M' --pretty=format:'%C(yellow)%h%Creset%C(red)%d%Creset %s %C(yellow)%an %C(red)%ad %Creset'"
     r = reset
     rh = reset --hard
-    rg = "!reset_grep() { for param in "$@"; do git reset $(git ls-files -c | grep "$param"); done }; reset_grep"
+    rg = "!f() { for p in \"$@\"; do git ls-files -c | grep \"$p\" | tr '\\n' '\\0' | xargs -0 git reset; done; }; f"
     reb = rebase -i
     reba = rebase --abort
     rebc = rebase --continue
