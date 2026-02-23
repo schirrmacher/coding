@@ -16,3 +16,15 @@ all:
 	@git config --global --get-all include.path | grep -qF "$(GITCONFIG_PATH)" \
 		|| git config --global --add include.path "$(GITCONFIG_PATH)"
 	@echo ".gitconfig includes $(GITCONFIG_PATH)"
+	@for rc in $(HOME)/.bashrc $(HOME)/.zshrc; do \
+		if [ -f "$$rc" ]; then \
+			grep -qF "alias g=git" "$$rc" || echo "alias g=git" >> "$$rc"; \
+			echo "alias g=git → $$rc"; \
+		fi; \
+	done
+	@echo ""
+	@if [ -n "$$ZSH_VERSION" ] || [ "$$SHELL" = "/bin/zsh" ]; then \
+		echo "Run: source ~/.zshrc"; \
+	elif [ -n "$$BASH_VERSION" ] || [ "$$SHELL" = "/bin/bash" ]; then \
+		echo "Run: source ~/.bashrc"; \
+	fi
