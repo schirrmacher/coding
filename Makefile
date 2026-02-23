@@ -6,7 +6,7 @@ GITCONFIG_PATH := $(CURDIR)/git/gitconfig
 all:
 	@mkdir -p $(SKILLS_DIR)
 	@for name in $(SKILL_NAMES); do \
-		rm -f "$(SKILLS_DIR)/$$name"; \
+		rm -rf "$(SKILLS_DIR)/$$name"; \
 		ln -s "$(CURDIR)/skills/$$name" "$(SKILLS_DIR)/$$name"; \
 		echo "$$name → $(SKILLS_DIR)/$$name"; \
 	done
