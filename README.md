@@ -16,6 +16,7 @@ Symlinks skills and gitignore, includes gitconfig. `user.email` stays local.
 | `/mature-interfaces` | Types, API contracts, and module boundaries |
 | `/mature-logic` | Separation of concerns, correctness, edge cases |
 | `/mature-performance` | Efficiency, resource management, scalability |
+| `/mature-testing` | Public API coverage, behavior-driven tests, naming |
 
 ## Git
 
