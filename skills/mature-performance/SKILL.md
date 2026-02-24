@@ -65,8 +65,8 @@ If `$ARGUMENTS` is provided, scope the review to those files or directories.
 
 5. **Changes table**: End with a compact before/after summary:
 
-   | Location | Before | After |
-   |---|---|---|
-   | `file:line` | brief description of current state | what it should become |
+   | Before | After |
+   |---|---|
+   | brief description of current state | what it should become |
 
 6. **If status is "Needs Work"**: Ask the user whether they want you to proceed with the fixes.
