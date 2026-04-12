@@ -12,13 +12,17 @@ Improve the **readability** of the code specified by `$ARGUMENTS`.
 ## What to change
 
 1. **Flatten nesting** — guard clauses and early exits first, main logic at one indent level.
-2. **Reorder by importance** — public API and core logic first, helpers and constants after.
-3. **Extract inline complexity** — move complex inline data structures and closures into named variables or functions.
-4. **Rename for clarity** — names must be understandable in their surrounding context.
-5. **Group by cohesion** — cluster related lines together, separate groups with blank lines, order groups by logical coherence. Add a short comment above a group only if its purpose is not obvious from the code.
-6. **Comment only the why** — only when the reason cannot be expressed as code. Never add comments that reference this conversation or the changes being made.
+2. **Extract inline complexity** — move complex inline data structures and closures into named variables or functions.
+3. **Rename for clarity** — names must be understandable in their surrounding context.
+4. **Group by cohesion** — cluster related lines together, separate groups with blank lines. Add a short comment above a group only if its purpose is not obvious from the code.
+5. **Comment only the why** — only when the reason cannot be expressed as code. Never add comments that reference this conversation or the changes being made.
+6. **Order deliberately** — apply as the final step after all other changes. Arrange code by what the reader needs to understand first:
+   - Critical configuration and variables at the top.
+   - The most interesting or important part next — the core purpose, not boilerplate or helpers.
+   - Supporting details, utilities, and edge cases last.
+   - Cohesion groups in logical reading order.
 
-Do **not** change logic beyond flattening, reordering, extracting, renaming, grouping, and commenting. Verify identical behavior mentally.
+Do **not** change logic beyond flattening, extracting, renaming, grouping, commenting, and reordering. Verify identical behavior mentally.
 
 ## Examples
 
@@ -53,30 +57,6 @@ process(order)
   total = calculateTotal(order.items)
   charge(order.customer, total)
   return order
-```
-
-### Reorder by importance
-
-Bad — reader must scroll past helpers to find the purpose:
-
-```
-RETRIES = 3
-
-delay(ms) -> ...
-buildHeaders(token) -> ...
-
-export fetchProfile(id, token) -> ...
-```
-
-Good — purpose first, mechanism after:
-
-```
-export fetchProfile(id, token) -> ...
-
-RETRIES = 3
-
-delay(ms) -> ...
-buildHeaders(token) -> ...
 ```
 
 ### Rename for clarity
@@ -190,6 +170,129 @@ Good — explaining a non-obvious reason:
 ```
 // prefer reactivation over new account to retain history
 user.status = 'active'
+```
+
+### Order deliberately
+
+Bad — file level: config buried, helpers before purpose, related pieces scattered:
+
+```
+delay(ms) -> ...
+
+class ProfileCache
+  get(id) -> ...
+  set(id, data) -> ...
+  invalidate(id) -> ...
+
+buildHeaders(token) -> ...
+
+RETRIES = 3
+BACKOFF = 100
+BASE_URL = '/api/v2'
+
+export fetchProfile(id, token) -> ...
+export updateProfile(id, data, token) -> ...
+
+formatProfile(raw) -> ...
+```
+
+Good — file level: config at top, then the interesting part, then supporting pieces grouped by what they support:
+
+```
+RETRIES = 3
+BACKOFF = 100
+BASE_URL = '/api/v2'
+
+export fetchProfile(id, token) -> ...
+export updateProfile(id, data, token) -> ...
+
+class ProfileCache
+  get(id) -> ...
+  set(id, data) -> ...
+  invalidate(id) -> ...
+
+formatProfile(raw) -> ...
+buildHeaders(token) -> ...
+delay(ms) -> ...
+```
+
+Bad — class level: internals before the interface, construction mixed with behavior:
+
+```
+class OrderProcessor
+  _validateItem(item) -> ...
+  _applyDiscount(item, code) -> ...
+
+  constructor(gateway, inventory)
+    this.gateway = gateway
+    this.inventory = inventory
+
+  _reserveStock(items) -> ...
+
+  submit(order) -> ...
+  cancel(orderId) -> ...
+```
+
+Good — class level: construction, then public interface, then internals:
+
+```
+class OrderProcessor
+  constructor(gateway, inventory)
+    this.gateway = gateway
+    this.inventory = inventory
+
+  submit(order) -> ...
+  cancel(orderId) -> ...
+
+  _validateItem(item) -> ...
+  _applyDiscount(item, code) -> ...
+  _reserveStock(items) -> ...
+```
+
+Bad — function level: concerns scattered, reader can't tell what matters:
+
+```
+deployService(service, env)
+  logDir = env.logDir or '/var/log'
+  ensureDir(logDir)
+  pidFile = logDir + '/' + service.name + '.pid'
+  if fileExists(pidFile) -> throw 'already running'
+  artifact = buildArtifact(service.source)
+  checksum = hash(artifact)
+  previous = getRunningChecksum(service.name)
+  if checksum == previous -> return 'no changes'
+  healthCheck = service.healthCheck or '/health'
+  timeout = env.timeout or 30
+  stopExisting(service.name)
+  instance = startInstance(artifact, env)
+  waitUntilHealthy(instance, healthCheck, timeout)
+  writePid(pidFile, instance.pid)
+  notifyTeam(service.name, checksum)
+  return instance
+```
+
+Good — function level: config, then guard rails, then the interesting part (build, deploy, verify):
+
+```
+deployService(service, env)
+  logDir = env.logDir or '/var/log'
+  healthCheck = service.healthCheck or '/health'
+  timeout = env.timeout or 30
+
+  pidFile = logDir + '/' + service.name + '.pid'
+  if fileExists(pidFile) -> throw 'already running'
+
+  artifact = buildArtifact(service.source)
+  checksum = hash(artifact)
+  if checksum == getRunningChecksum(service.name) -> return 'no changes'
+
+  stopExisting(service.name)
+  instance = startInstance(artifact, env)
+  waitUntilHealthy(instance, healthCheck, timeout)
+
+  writePid(pidFile, instance.pid)
+  notifyTeam(service.name, checksum)
+  return instance
 ```
 
 ## Output
