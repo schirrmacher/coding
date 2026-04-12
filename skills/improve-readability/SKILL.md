@@ -15,9 +15,10 @@ Improve the **readability** of the code specified by `$ARGUMENTS`.
 2. **Reorder by importance** — public API and core logic first, helpers and constants after.
 3. **Extract inline complexity** — move complex inline data structures and closures into named variables or functions.
 4. **Rename for clarity** — names must be understandable in their surrounding context.
-5. **Comment only the why** — only when the reason cannot be expressed as code. Never add comments that reference this conversation or the changes being made.
+5. **Group by cohesion** — cluster related lines together, separate groups with blank lines, order groups by logical coherence. Add a short comment above a group only if its purpose is not obvious from the code.
+6. **Comment only the why** — only when the reason cannot be expressed as code. Never add comments that reference this conversation or the changes being made.
 
-Do **not** change logic beyond flattening, reordering, extracting, renaming, and commenting. Verify identical behavior mentally.
+Do **not** change logic beyond flattening, reordering, extracting, renaming, grouping, and commenting. Verify identical behavior mentally.
 
 ## Examples
 
@@ -133,6 +134,46 @@ retryOrAlert(err, ctx)
   log(err)
   if ctx.attempt < 3 -> ctx.retry()
   else               -> alert(ctx.task, err)
+```
+
+### Group by cohesion
+
+Bad — dense wall of loosely related lines:
+
+```
+initApp()
+  db = connectDB(config.db)
+  cache = createCache(config.cache)
+  logger = setupLogger(config.log)
+  router = createRouter()
+  router.use(authMiddleware)
+  router.use(rateLimiter)
+  router.mount('/users', userRoutes)
+  router.mount('/orders', orderRoutes)
+  server = createServer(router)
+  server.onError(logger.error)
+  server.listen(config.port)
+  logger.info('started on ' + config.port)
+```
+
+Good — grouped by concern with blank lines between:
+
+```
+initApp()
+  db = connectDB(config.db)
+  cache = createCache(config.cache)
+  logger = setupLogger(config.log)
+
+  router = createRouter()
+  router.use(authMiddleware)
+  router.use(rateLimiter)
+  router.mount('/users', userRoutes)
+  router.mount('/orders', orderRoutes)
+
+  server = createServer(router)
+  server.onError(logger.error)
+  server.listen(config.port)
+  logger.info('started on ' + config.port)
 ```
 
 ### Comments
