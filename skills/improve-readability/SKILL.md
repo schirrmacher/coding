@@ -1,0 +1,118 @@
+---
+name: improve-readability
+description: Flatten nested code, reorder by importance, and clarify names. Reduces deep indentation via guard clauses, puts main logic first, and renames unclear variables.
+user-invocable: true
+disable-model-invocation: true
+allowed-tools: Read, Grep, Glob, Edit
+argument-hint: <file|code-target>
+---
+
+Improve the **readability** of the code specified by `$ARGUMENTS`.
+
+## What to change
+
+1. **Flatten nesting** — guard clauses and early exits first, main logic at one indent level.
+2. **Reorder by importance** — public API and core logic first, helpers and constants after.
+3. **Rename for clarity** — names must be understandable in their surrounding context.
+4. **Comment only the why** — only when the reason cannot be expressed as code. Never add comments that reference this conversation or the changes being made.
+
+Do **not** change logic beyond flattening, reordering, renaming, and commenting. Verify identical behavior mentally.
+
+## Examples
+
+### Flatten nesting
+
+Bad:
+
+```
+process(order)
+  if order exists
+    if order.items not empty
+      if order.status is pending
+        total = calculateTotal(order.items)
+        charge(order.customer, total)
+        return order
+      else
+        throw 'already processed'
+    else
+      throw 'no items'
+  else
+    throw 'no order'
+```
+
+Good:
+
+```
+process(order)
+  if not order          -> throw 'no order'
+  if items empty        -> throw 'no items'
+  if status not pending -> throw 'already processed'
+
+  total = calculateTotal(order.items)
+  charge(order.customer, total)
+  return order
+```
+
+### Reorder by importance
+
+Bad — reader must scroll past helpers to find the purpose:
+
+```
+RETRIES = 3
+
+delay(ms) -> ...
+buildHeaders(token) -> ...
+
+export fetchProfile(id, token) -> ...
+```
+
+Good — purpose first, mechanism after:
+
+```
+export fetchProfile(id, token) -> ...
+
+RETRIES = 3
+
+delay(ms) -> ...
+buildHeaders(token) -> ...
+```
+
+### Rename for clarity
+
+Bad:
+
+```
+calc(d, r, t)
+  v = d.filter(x => x.a > t)
+  return v.reduce((s, x) => s + x.a * r, 0)
+```
+
+Good:
+
+```
+discountedTotal(orders, rate, minAmount)
+  eligible = orders.filter(o => o.amount > minAmount)
+  return eligible.reduce((sum, o) => sum + o.amount * rate, 0)
+```
+
+### Comments
+
+Bad — restating the code:
+
+```
+// set status to active
+user.status = 'active'
+```
+
+Good — explaining a non-obvious reason:
+
+```
+// prefer reactivation over new account to retain history
+user.status = 'active'
+```
+
+## Output
+
+| Before | After |
+|---|---|
+| brief description of how the code was | what changed |
