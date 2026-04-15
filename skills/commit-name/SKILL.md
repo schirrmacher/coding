@@ -1,16 +1,86 @@
 ---
 name: commit-name
-description: Generate a short, crisp commit message from the conversation context.
-user-invocable: true
-disable-model-invocation: true
-allowed-tools:
+description: Generate a short, crisp commit message and commit staged files. Summarizes what changed in imperative mood with a concise subject and brief body.
+triggers:
+  - phrase: "/commit-name"
+  - phrase: "write a commit message"
+  - phrase: "commit message"
+  - phrase: "commit changes"
 ---
 
-From the conversation context, summarize what was done.
+# Commit Name — Git Commit Generator
 
-Write a commit message from the conversation context:
+## Purpose
 
-- Subject: one short line, max 50 characters, lowercase, imperative mood. No scope prefix. No period.
-- Body: a minimal summary of what changed and why, wrapped at 72 characters. Use bullet points if multiple changes. Keep it brief — only include what is not obvious from the diff.
+Generate a commit message from the conversation context and commit staged files. Produce a subject line and a minimal body that tells the reader **why**, not just **what**.
 
-Output the subject, a blank line, then the body. Nothing else.
+## When to Use
+
+1. **Manual invocation** — user types `/commit-name` after staging changes
+2. **Post-task** — user asks to "commit changes" or "write a commit message"
+3. **Proactive** — user says "commit this" or "save my work"
+
+## What It Produces
+
+A git commit with the following message format:
+
+```
+<subject>
+
+- <change 1>
+- <change 2>
+- <change 3>
+```
+
+- **Subject** — one short line, max 50 characters, lowercase, imperative mood, no period
+- **Body** — max 3 bullet points, each line max 80 characters, only what is not obvious from the diff
+
+## Workflow
+
+### Step 1: Read Context
+
+- Review the conversation to identify what was done and why
+- Check `git diff --staged` to see exactly what will be committed
+
+### Step 2: Compose Message
+
+- Write a subject line that describes the outcome
+- Write up to 3 body bullets summarizing non-obvious changes
+- Keep it brief — if the diff speaks for itself, fewer bullets
+
+### Step 3: Commit
+
+- Run `git commit` with the composed message
+- Do **not** add a co-author line
+
+## Principles
+
+1. **Imperative mood** — "add feature", not "added feature"
+2. **Outcome over activity** — describe what changed, not what you did
+3. **Brevity** — only include what the diff does not already say
+4. **No decoration** — no scope prefixes, no emojis, no trailing period
+5. **No co-author** — do not add coding agent attribution
+
+## Examples
+
+**Input**: User added input validation to a form component
+
+**Output**:
+
+```
+add input validation to signup form
+
+- reject emails without domain
+- show inline error on blur
+```
+
+**Input**: User fixed a race condition in the cache layer
+
+**Output**:
+
+```
+fix race condition in cache invalidation
+
+- guard concurrent writes with mutex
+- add staleness check before serve
+```
