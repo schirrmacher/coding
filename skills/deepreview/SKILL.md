@@ -49,12 +49,12 @@ A structured audit report output directly in the conversation:
 
 ## Workflow
 
-### Step 1: Inventory Public Interfaces
+### Step 1: Inventory Interfaces
 
-- Scan the target folder, file, or class for all public interfaces
-- List every public function, method, endpoint, or exported symbol
-- Record each signature: name, parameters, return type
-- Ignore private/internal helpers — focus only on the public surface
+- Determine the scope: public interfaces by default, or the scope the user specified (internal, all, specific class/layer)
+- Scan the target folder, file, or class for all interfaces matching the scope
+- List every function, method, endpoint, or symbol in scope
+- Record each signature: name, parameters, return type, visibility
 
 ### Step 2: Trace Call-Chains
 
@@ -109,7 +109,7 @@ Propose concrete merges or generalizations.
 
 ### Step 7: Report
 
-- List all public interfaces in a table
+- List all interfaces in scope in a table
 - Summarize each call-chain briefly
 - Number every finding with a severity (convention / redundancy / simplification)
 - Present recommendations as a table: action, before, after, why
