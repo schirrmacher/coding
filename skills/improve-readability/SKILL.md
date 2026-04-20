@@ -41,14 +41,16 @@ In-place edits that preserve identical behavior:
 
 ### Step 1: Flatten Nesting
 
-- Find deeply nested conditionals and loops
-- Convert to guard clauses and early exits
+- Find any branch whose body exits the surrounding scope — `return`, `continue`, `break`, `throw`, `panic` — regardless of the construct it lives in (`if`, `match`/`switch` arm, `case`, `try/catch`, destructure-with-fallback)
+- Lift each terminating branch to a flat guard clause at the base indent of its scope, even when it means inverting a `match` or `switch` into an `if let` / early-exit form
+- Test: if you delete the main body after the branch, does the branch still make sense on its own? If yes, it's a guard — lift it
 - Keep main logic at a single indent level
 
 ### Step 2: Extract Inline Complexity
 
 - Find complex inline data structures, closures, and deeply nested object literals passed as arguments
 - Pull them into named variables or functions above the call
+- Prefer a named local over a single-use helper — promote to a function only when there's a second call site, the name needs to appear in stack traces, or inlining would re-nest the caller
 - Make the call site scannable at a glance
 
 ### Step 3: Rename for Clarity
@@ -120,6 +122,38 @@ process(order)
   return order
 ```
 
+### Flatten nesting — terminating match/switch arms
+
+Bad — the failure arm is a mini state machine buried inside a value-binding match; the success arm is trivial. The reader has to parse both arms to see the control flow:
+
+```
+validated = match result:
+  success(value) -> value
+  failure(detail) ->
+    state.retries += 1
+    if state.retries > maxRetries
+      throw 'retries exhausted'
+    state.messages.push(retryPrompt(detail))
+    emit(turnEnd)
+    continue
+```
+
+Good — the terminating arm becomes a flat guard; the happy path falls through at base indent:
+
+```
+if result is failure(detail)
+  state.retries += 1
+  if state.retries > maxRetries -> throw 'retries exhausted'
+
+  state.messages.push(retryPrompt(detail))
+  emit(turnEnd)
+  continue
+
+validated = result.value
+```
+
+The tell for this transform: one arm is trivial (just binds the value), the other is substantive with its own branching and exits. The match is disguised control flow — lift the substantive arm to a guard.
+
 ### Rename for clarity
 
 Bad:
@@ -137,6 +171,36 @@ discountedTotal(orders, rate, minAmount)
   eligible = orders.filter(o => o.amount > minAmount)
   return eligible.reduce((sum, o) => sum + o.amount * rate, 0)
 ```
+
+### Extract inline complexity — inline literal arguments
+
+Bad — the inline literal pushes the call apart vertically; the reader has to scan 7 lines to see what `emit` is being called with:
+
+```
+emit(
+  runtime,
+  spec,
+  {
+    kind: 'agentEnd',
+    turns: state.turn,
+    status: 'completed',
+  },
+)
+```
+
+Good — name the constructed value, then pass the name. The call collapses to one scannable line; the literal's meaning is carried by the variable name:
+
+```
+agentEnd = {
+  kind: 'agentEnd',
+  turns: state.turn,
+  status: 'completed',
+}
+
+emit(runtime, spec, agentEnd)
+```
+
+Applies whenever a function call's arguments span multiple lines purely because of an inline literal — even a small one. The indented block inside a call is an anonymous value; giving it a name splits "what is this value" from "what do we do with it."
 
 ### Extract inline complexity
 
