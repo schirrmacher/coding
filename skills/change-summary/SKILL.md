@@ -25,9 +25,10 @@ Also produce a crisp 3-5 point summary at the top that captures the purpose of t
 
 ## What It Produces
 
-A markdown summary wrapped in a code block for direct copying:
+A markdown summary wrapped in a 4-backtick code block so inner 3-backtick fences for each example render correctly when pasted:
 
-```
+`````
+````markdown
 ## <title: max 60 chars, imperative mood>
 
 ### Purpose
@@ -40,8 +41,17 @@ A markdown summary wrapped in a code block for direct copying:
 
 ### Examples
 
-<2-3 short code snippets showing usage of the new/changed APIs or features. No internals.>
+```<lang>
+<example 1: short snippet showing usage of the new/changed API>
 ```
+
+```<lang>
+<example 2: another snippet, different scenario>
+```
+````
+`````
+
+Each inner example MUST be wrapped in its own triple-backtick fence with a language tag (e.g. `http`, `json`, `bash`, `ts`, `py`). Do not paste raw snippets without fences — they will not render as code.
 
 ## Workflow
 
@@ -60,7 +70,9 @@ A markdown summary wrapped in a code block for direct copying:
 
 ### Step 3: Format Output
 
-- Wrap the entire summary in a markdown code block (` ```markdown `)
+- Wrap the entire summary in a 4-backtick fence tagged `markdown` (` ````markdown `)
+- Wrap each example snippet in its own 3-backtick fence with the appropriate language tag (`http`, `json`, `bash`, `ts`, `py`, etc.)
+- Never leave example code as bare text — every snippet must be inside a fenced block
 - Verify the summary is under 30 lines
 - Ensure examples are copy-pasteable and show the public interface
 
@@ -78,8 +90,8 @@ A markdown summary wrapped in a code block for direct copying:
 
 **Output**:
 
+`````markdown
 ````markdown
-```markdown
 ## Add JWT authentication with refresh token rotation
 
 ### Purpose
@@ -97,20 +109,28 @@ A markdown summary wrapped in a code block for direct copying:
 
 ### Examples
 
-POST /auth/login { "email": "a@b.com", "password": "..." }
--> { "access_token": "...", "refresh_token": "..." }
+```http
+POST /auth/login
+{ "email": "a@b.com", "password": "..." }
+```
 
-GET /api/profile -H "Authorization: Bearer <access_token>"
--> { "id": 1, "email": "a@b.com" }
+```json
+{ "access_token": "...", "refresh_token": "..." }
+```
+
+```http
+GET /api/profile
+Authorization: Bearer <access_token>
 ```
 ````
+`````
 
 **Input**: "PR description for the pagination changes"
 
 **Output**:
 
+`````markdown
 ````markdown
-```markdown
 ## Add cursor-based pagination to list endpoints
 
 ### Purpose
@@ -128,10 +148,20 @@ GET /api/profile -H "Authorization: Bearer <access_token>"
 
 ### Examples
 
+```http
 GET /api/users?limit=10
--> { "data": [...], "next_cursor": "abc123" }
+```
 
+```json
+{ "data": [...], "next_cursor": "abc123" }
+```
+
+```http
 GET /api/users?limit=10&cursor=abc123
--> { "data": [...], "next_cursor": "def456" }
+```
+
+```json
+{ "data": [...], "next_cursor": "def456" }
 ```
 ````
+`````
