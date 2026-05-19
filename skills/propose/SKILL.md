@@ -40,7 +40,19 @@ Closing **Recommendation** — one or two sentences picking an option and the de
 
 State in one sentence what's being designed. If the question is ambiguous, ask before drafting options.
 
-### Step 2: Generate Distinct Shapes
+### Step 2: Anchor in Stack Idioms
+
+Identify the language, framework, and libraries already in play. Each option must be a shape that's **idiomatic to that stack** — not a generic pattern transplanted from elsewhere.
+
+- React → hooks and composition before class wrappers
+- Go → small interfaces, errors as values, no exceptions
+- Rust → traits and ownership before runtime checks
+- TypeScript → discriminated unions before string enums
+- Python → context managers, dataclasses, async if already async
+
+Check the repo for existing patterns first. If the codebase already solves similar problems a certain way, that's the strongest signal — match it unless there's a real reason to diverge.
+
+### Step 3: Generate Distinct Shapes
 
 Brainstorm options that differ on a meaningful axis — not cosmetic variations. Examples of real axes:
 
@@ -52,30 +64,31 @@ Brainstorm options that differ on a meaningful axis — not cosmetic variations.
 
 Cap at 3. If more come to mind, drop the weakest.
 
-### Step 3: Write Usage First
+### Step 4: Write Usage First
 
 For each option, write the **caller's code** first — what they would type to use it. This is the load-bearing part of the proposal.
 
-### Step 4: Add the Minimum Definition
+### Step 5: Add the Minimum Definition
 
 Show signatures, types, or interfaces only when the usage doesn't fully reveal the API. Never include implementation bodies — they're not the point.
 
-### Step 5: Name the Tradeoff
+### Step 6: Name the Tradeoff
 
 One line per option. Name what it **costs**, not what it's good at — strengths are visible in the usage code; costs need to be stated.
 
-### Step 6: Recommend
+### Step 7: Recommend
 
 Pick one. Even if close, state which option you'd pick and the deciding factor. Leaving the choice open is not neutral — it pushes the work back to the user.
 
 ## Principles
 
 1. **Code over prose** — a 4-line snippet beats a paragraph
-2. **Usage before definition** — the caller's view drives the shape
-3. **Distinct shapes** — options must differ on a real axis, not cosmetics
-4. **At most three** — more options dilute the decision
-5. **Name the cost, not the win** — strengths are obvious; costs need to be stated
-6. **Always recommend** — leaving the choice open is lazy, not neutral
+2. **Idiomatic to the stack** — every option must look native to the language and framework already in use; match existing repo patterns before importing outside ones
+3. **Usage before definition** — the caller's view drives the shape
+4. **Distinct shapes** — options must differ on a real axis, not cosmetics
+5. **At most three** — more options dilute the decision
+6. **Name the cost, not the win** — strengths are obvious; costs need to be stated
+7. **Always recommend** — leaving the choice open is lazy, not neutral
 
 ## Examples
 
