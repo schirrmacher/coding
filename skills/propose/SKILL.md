@@ -1,6 +1,6 @@
 ---
 name: propose
-description: Present 1-3 design options as concrete proposals so the user can feel the choice before any implementation begins. Works for code APIs, architectural designs, and naming. Each option leads with a tangible artifact and a one-line tradeoff, with a closing recommendation.
+description: Present 1-3 design options as concrete proposals so the user can feel the choice before any implementation begins. Works for code APIs and architectural designs. For naming requests, scans project conventions and returns a ranked list of 3-10 candidate names with a pick recommendation.
 triggers:
   - phrase: "/propose"
   - phrase: "propose options"
@@ -23,7 +23,7 @@ The artifact changes by what's being proposed; the structure does not.
 
 - **Code / API** (default) — usage snippets showing how the caller would write it
 - **Architecture** — a short structural sketch: components, boundaries, data flow, or a small ASCII diagram. Triggered by phrases like "propose an architecture", "how should we structure…", "service boundaries", "data flow"
-- **Naming** — candidate names in context (a signature, a path, a header), not bare strings. Triggered by phrases like "propose a name", "what should we call…", "rename…"
+- **Naming** — a list of 3–10 candidate names. Triggered by phrases like "propose a name", "what should we call…", "rename…", "name ideas", "suggest a name". Does **not** use the full options + tradeoffs format — just a ranked list with a one-line note per entry.
 
 If the user's phrasing is ambiguous, pick the mode that matches the question; don't ask unless the modes would produce wildly different answers.
 
@@ -39,17 +39,32 @@ Skip if there's only one reasonable option or the design is trivial — proposin
 
 ## What It Produces
 
-A short response with 1-3 options. Each option has:
+**Code / Architecture** — a short response with 1–3 options. Each option has:
 
 - A **label** that captures its character (not "Option A" — say what it is)
 - A **concrete artifact**, matched to the mode:
   - *Code:* a usage snippet — the API as the caller would write it
   - *Architecture:* a sketch of components, boundaries, or flow (ASCII diagram, file tree, or short bullet structure)
-  - *Naming:* the name shown in context — a signature, path, header, or call site — never a bare string
-- A **supporting snippet** only when the artifact doesn't fully reveal the shape (signatures for code, a one-line responsibility statement for components, a sibling for names)
+- A **supporting snippet** only when the artifact alone doesn't reveal the shape
 - A **one-line tradeoff** — what this option costs
 
 Closing **Recommendation** — one or two sentences picking an option and the deciding factor.
+
+**Naming** — a ranked list of 3–10 candidates (no full option blocks, no tradeoffs section):
+
+```
+## Name suggestions for <thing>
+
+Conventions detected: <casing, prefix family, abbreviation policy>
+
+1. `candidateName` — one-line note on why it fits
+2. `anotherName` — one-line note
+...
+
+**Pick**: `recommendedName` — one sentence on the deciding factor.
+```
+
+The detected conventions line keeps the list grounded. The pick line is required — never leave the choice open.
 
 ## Workflow
 
@@ -87,31 +102,37 @@ Brainstorm options that differ on a meaningful axis — not cosmetic variations.
 - library vs sidecar vs service
 - one boundary vs several smaller ones
 
-*Naming:*
-- verb-first vs noun-first (`computeX` vs `xCompute`)
-- domain term vs generic term (`enroll` vs `add`)
-- consistent suffix family (`xFor`, `xBy`, `xWith`) vs bare names
-- abbreviation vs full word
+*Naming:* scan the project first, then generate names.
+- Grep for naming patterns: casing style, prefix/suffix families (`xFor`, `xBy`, `handle*`, `on*`), abbreviation policy
+- Match existing patterns unless the user asks to diverge
+- Generate 3–10 candidates that differ on a meaningful axis: verb-first vs noun-first, domain term vs generic, suffix family vs bare name, abbreviation vs full word
+- Skip the options + tradeoffs structure — use the Names List format instead (see below)
 
-Cap at 3. If more come to mind, drop the weakest.
+Cap at 3 for code/architecture options. If more come to mind, drop the weakest.
 
 ### Step 4: Show the Artifact First
 
-For each option, lead with the **concrete artifact** — the thing the user can read and react to:
+**For Naming mode** — skip the options format entirely. Instead output the Names List:
+
+1. State detected conventions in one line (casing, prefix/suffix families, abbreviation policy).
+2. List 3–10 numbered candidates, each with a one-line note on why it fits.
+3. End with a **Pick** line naming the recommended candidate and the deciding factor.
+
+**For Code / Architecture mode** — lead each option with the **concrete artifact**:
 
 - *Code:* the caller's code — what they'd type to use it
 - *Architecture:* the structure — components and their relationships, a small ASCII diagram, or a directory tree
-- *Naming:* the name in context — a function signature, file path, URL, or call site that includes nearby siblings so the name reads in situ
 
 This is the load-bearing part of the proposal. Prose around the artifact is supporting only.
 
 ### Step 5: Add the Minimum Supporting Detail
 
+*(Code / Architecture only — Naming mode ends at step 4.)*
+
 Add a small extra only when the artifact alone doesn't reveal the shape:
 
 - *Code:* signatures, types, or interfaces — never implementation bodies
 - *Architecture:* a one-line responsibility per component, or the key invariant the boundary enforces
-- *Naming:* a sibling or two to show how the name reads alongside neighbors (e.g., other methods on the same type)
 
 ### Step 6: Name the Tradeoff
 
@@ -127,9 +148,10 @@ Pick one. Even if close, state which option you'd pick and the deciding factor. 
 2. **Idiomatic to the stack** — every option must look native to the language, framework, or domain already in use; match existing repo patterns before importing outside ones
 3. **Show the artifact first** — the reader's view (caller's code, structure sketch, name in context) drives the shape
 4. **Distinct shapes** — options must differ on a real axis, not cosmetics
-5. **At most three** — more options dilute the decision
+5. **At most three** — more options dilute the decision (naming: 3–10 candidates)
 6. **Name the cost, not the win** — strengths are obvious; costs need to be stated
 7. **Always recommend** — leaving the choice open is lazy, not neutral
+8. **Match conventions before inventing** — grep the project; names that look native are immediately usable
 
 ## Examples
 
@@ -225,38 +247,17 @@ Option 2 if codegen already runs in the build; otherwise Option 1 with a lint ru
 **Output**:
 
 ````markdown
-## Proposal: Name for the permission resolution function
+## Name suggestions for permission resolution function
 
-### Option 1: `resolvePermissions`
+Conventions detected: camelCase, verb-first helpers (`rolesFor`, `overridesFor`), no abbreviations
 
-```ts
-const perms = resolvePermissions(user)
-// alongside: applyOverrides(user, rules), loadRoles(user)
-```
+1. `effectivePermissionsFor` — matches the `xFor(user)` family already in the codebase
+2. `resolvePermissions` — verb-first, clear intent; "resolve" could be misread as async
+3. `computeEffectivePermissions` — explicit about computation cost; `compute` prefix implies callers may want to cache
+4. `permissionsFor` — shortest option; drops "effective" so it's less precise
+5. `mergedPermissionsFor` — names the mechanism (merge of roles + overrides); slightly implementation-flavored
 
-Tradeoff: "resolve" is vague — could be read as resolving a promise or a path.
-
-### Option 2: `effectivePermissionsFor`
-
-```ts
-const perms = effectivePermissionsFor(user)
-// alongside: rolesFor(user), overridesFor(user)
-```
-
-Tradeoff: longer; the `For` suffix has to be applied consistently across siblings.
-
-### Option 3: `computeEffectivePermissions`
-
-```ts
-const perms = computeEffectivePermissions(user)
-// alongside: computeRoleSet(user), computeOverrideSet(user)
-```
-
-Tradeoff: the `compute` prefix implies expensive work — callers may cache defensively.
-
-### Recommendation
-
-Option 2. `effectivePermissionsFor` names the actual concept ("effective" vs raw) and reads naturally next to the existing `rolesFor` / `overridesFor` helpers.
+**Pick**: `effectivePermissionsFor` — names the actual concept ("effective" vs raw) and fits the existing `rolesFor` / `overridesFor` suffix family without needing a new convention.
 ````
 
 **Input**: `/propose an architecture for the new ingestion pipeline`
