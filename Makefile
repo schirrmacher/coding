@@ -2,6 +2,7 @@ SKILLS_DIR := $(HOME)/.claude/skills
 REPO_SKILLS := $(shell find $(CURDIR)/skills -mindepth 1 -maxdepth 1 -type d)
 SKILL_NAMES := $(notdir $(REPO_SKILLS))
 GITCONFIG_PATH := $(CURDIR)/git/gitconfig
+NANORC_PATH := $(CURDIR)/nano/nanorc
 
 all:
 	@mkdir -p $(SKILLS_DIR)
@@ -16,6 +17,9 @@ all:
 	@git config --global --get-all include.path | grep -qF "$(GITCONFIG_PATH)" \
 		|| git config --global --add include.path "$(GITCONFIG_PATH)"
 	@echo ".gitconfig includes $(GITCONFIG_PATH)"
+	@rm -f "$(HOME)/.nanorc"
+	@ln -s "$(NANORC_PATH)" "$(HOME)/.nanorc"
+	@echo ".nanorc → $(HOME)/.nanorc"
 	@for rc in $(HOME)/.bashrc $(HOME)/.zshrc; do \
 		if [ -f "$$rc" ]; then \
 			grep -qF "alias g=git" "$$rc" || echo "alias g=git" >> "$$rc"; \
