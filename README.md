@@ -18,6 +18,7 @@ Symlinks skills and gitignore, includes gitconfig. `user.email` stays local.
 | `/mature-performance` | Efficiency, resource management, scalability |
 | `/mature-testing` | Public API coverage, behavior-driven tests, naming |
 | `/deepcopy` | Port a reference codebase into this project, tests-first |
+| `/deepspec` | Implement a specification (RFC/standard) into this project, conformance-first |
 | `/commit-name` | Generate a short commit message from current changes |
 | `/mr-summary` | Generate a concise merge request summary with examples |
 | `/handover` | Create a handover doc for another agent to pick up work |
