@@ -34,10 +34,12 @@ Identify the dominant pattern across the most recent ~5 commits:
 - **Casing** — lowercase, Sentence case, Title Case
 - **Prefixes** — Conventional Commits (`feat:`, `fix:`), ticket IDs, scopes, or none
 - **Subject length** — typical character count
-- **Body** — absent, bullets, prose, or trailers
+- **Body** — absent, bullets, prose, or trailers (the *shape*, not the length)
 - **Punctuation** — trailing period or not
 
 Write this down as a one-paragraph style brief.
+
+**Match style, not verbosity.** Detection covers tense, casing, prefixes, and body shape. It does **not** license long messages: even if the history has sprawling multi-line bullets, the new message stays crisp — max 5 single-line bullets, as enforced by `commit-name`. Never mimic bloat.
 
 ### Step 2: Hand Off to commit-name
 
@@ -53,6 +55,7 @@ After the commit, run `git log -1` and confirm the new subject visually matches 
 
 ## Principles
 
-1. **Mimic, don't impose** — the repo's style wins over the default
-2. **Delegate** — composing and committing stays in `commit-name`; this skill only contributes the style detection
-3. **No AI attribution** — never add `Co-Authored-By: Claude` or similar
+1. **Mimic, don't impose** — the repo's style wins over the default, but only for tense/casing/prefixes/shape — never for length
+2. **Crisp beats conforming** — match the house style without inheriting its verbosity; bullets stay short even if history's don't
+3. **Delegate** — composing and committing stays in `commit-name`; this skill only contributes the style detection
+4. **No AI attribution** — never add `Co-Authored-By: Claude` or similar

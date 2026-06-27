@@ -33,7 +33,7 @@ A git commit with the following message format:
 ```
 
 - **Subject** — one short line, max 50 characters, lowercase, imperative mood, no period
-- **Body** — max 3 bullet points, each line max 80 characters, only what is not obvious from the diff
+- **Body** — max 5 bullets, each a **single line** ≤80 characters, only what is not obvious from the diff. No wrapping, no sub-bullets, no multi-clause sentences — one crisp change per bullet. If a bullet needs a second line, it's doing too much: split it or cut it.
 
 ## Workflow
 
@@ -57,7 +57,7 @@ A git commit with the following message format:
 
 1. **Imperative mood** — "add feature", not "added feature"
 2. **Outcome over activity** — describe what changed, not what you did
-3. **Brevity** — only include what the diff does not already say
+3. **Brevity** — only include what the diff does not already say; each bullet stays one short line, max 5 total
 4. **No decoration** — no scope prefixes, no emojis, no trailing period
 5. **No co-author** — do not add coding agent attribution
 
