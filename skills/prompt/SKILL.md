@@ -50,8 +50,10 @@ Your strengths:
 
 Guidelines:
 - <Ordered operational steps as bare imperatives>
-- <Each non-obvious step paired with its reason in one clause>
-- NEVER <prohibition> — <consequence>
+- <Each non-obvious step paired with its reason in one clause via em dash>
+- IMPORTANT: <critical instruction that must not be missed>
+- NEVER <prohibition> — <specific concrete consequence>
+- CRITICAL: <single highest-stakes rule in this group, if any>
 
 Output:
 - <Exact tool call, slug, or return shape>
@@ -68,13 +70,27 @@ NOTE: <closing meta-instruction about pacing, scope, or what to skip>
 Style rules:
 - Second-person, declarative. No "please", no "try to", no "should". The model treats hedged instructions as optional.
 - Imperative bullets. Bare verbs ("Use", "Write", "Overwrite", "Ground"). Removes ambiguity about whether a step is mandatory.
-- ALL-CAPS only for absolute rules ("NEVER include X", "MUST call once"). Never for emphasis. Keeps the capitalisation signal sharp.
+- ALL-CAPS keyword hierarchy — use each at exactly one level of severity, never interchangeably:
+  - `IMPORTANT:` — prefix for a critical instruction the model must not miss. Used standalone or inline: "IMPORTANT: Never use the -i flag — it requires interactive input which is not supported."
+  - `CRITICAL:` — prefix within a bullet list for the single highest-stakes item in a group of rules.
+  - `NEVER` — absolute prohibition. Always pair with a specific consequence inline.
+  - `DO NOT` — strong prohibition, slightly softer than NEVER. Use when the action is wrong but recoverable.
+  - `MUST` — absolute requirement. Use sparingly; overuse dilutes the signal.
+  - `NOT` — inline negation for contrast ("Use Glob, NOT find"). No consequence needed.
+  - `ONLY` — scoped restriction ("ONLY run when the user explicitly asks"). Limits, not prohibits.
+- Em dash as the "because" linker. Attach reason or consequence directly to the rule: "Do not retry in a sleep loop — diagnose the root cause." Keeps rule and reason inseparable without a full sentence break.
+- "explicitly" as the canonical qualifier for user-granted overrides. "unless the user explicitly requests it" is the standard form — not "unless asked", not "if the user wants". This phrase signals the model must wait for an unambiguous user instruction before crossing the rule.
+- Consequences must be specific. "Taking unauthorized destructive actions can result in lost work" beats "this is bad". Concrete consequences let the model judge edge cases.
 - Tool names in backticks. No paraphrase like "the filesystem tool". Paraphrase makes the model invent matching tool names.
 - Italics once per concept on the load-bearing noun (*intent*, *consumer*, *behavior*). Anchors the abstraction without becoming visual noise.
 - Quotes around vocabulary the output must produce literally ("summary", "content", "overview"). Signals the literal field is the output, not a description of it.
 - Pipeline-aware. Name the next agent or caller and state what they expect. An agent that knows its consumer writes better output.
 - Short sentences. Heavy line breaks. No paragraph runs past ~3 lines.
 - Bullets end without periods unless multi-sentence.
+- `Note:` for sequence dependencies or sidebars within numbered steps: "Note: git status depends on the commit completing, so run it sequentially after the commit."
+- `**WRONG**`/`**RIGHT**` pattern for anti-patterns. Show the exact bad form, then the exact good form. Saves the model from having to infer the inverse.
+- Named protocol sections for multi-step procedures. Use a bold header or a named block ("Git Safety Protocol:", "CRITICAL: Read Before Write") before a numbered list. The name makes the block skimmable and gives the model a label to reference.
+- `<example>` XML tags for concrete code examples embedded in prose. Keeps examples visually distinct from instructions.
 - Pair "When to use" with "When NOT to use" if the prompt risks being over-applied. Negative scope is where most misuse comes from.
 - Prefer grounding rules over taste rules. "Ground every claim in what you read" is verifiable; "be accurate" is not.
 
@@ -103,20 +119,24 @@ Your strengths:
 - Writing a one-line fix the author can paste back as-is
 
 Guidelines:
-- Read the PR title and body once. Do not open the diff.
+- Read the PR title and body once. Do NOT open the diff — the verdict
+  must be grounded in what an author wrote, not what the code shows.
 - Score the body against two questions: does it name the user-visible
   change, and does it name the motivation? Both → clear. Either
   missing → unclear.
-- Ground the verdict in a phrase quoted from the body. If you cannot
-  quote, the verdict is unclear by default.
-- NEVER suggest stylistic rewrites — the Reporter discards them.
+- Ground the verdict in a phrase quoted from the body — if you cannot
+  quote, return "unclear" by default.
+- IMPORTANT: If the body is empty, return "unclear" with a fix that
+  asks for any sentence at all. Do not infer from the title.
+- NEVER suggest stylistic rewrites — the Reporter discards them and the
+  fix field has no room for them anyway.
 - NEVER infer motivation from the title alone — the title is too short
-  to ground a verdict.
+  to ground a verdict and the model will hallucinate intent.
 
 Output:
 - `verdict`: one of "clear" or "unclear"
 - `fix` (≤140 chars, 1 sentence): the single sentence the author should
-  add or replace. Empty when verdict is "clear".
+  add or replace. Empty string when verdict is "clear".
 
 Example outputs:
 - { "verdict": "clear", "fix": "" }
@@ -124,8 +144,7 @@ Example outputs:
    fixes — the diff alone does not show why the retry loop moved from
    3 to 5." }
 
-NOTE: You read two fields, not the diff. If the body is empty, return
-"unclear" with a fix that asks for any sentence at all.
+NOTE: You read two fields, not the diff. One verdict, one fix — nothing else.
 ```
 
 NOTE: Match the prompt's weight to the task. A directive for a single inline replacement does not need a full role file — a 3-line imperative will do. Write the full skeleton only when the *consumer* is an agent running autonomously.
