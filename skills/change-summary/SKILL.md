@@ -13,9 +13,9 @@ triggers:
 
 ## Purpose
 
-Generate a change summary that communicates **what changed and why** in user-facing language. Focus on features and APIs, skip implementation details.
+Generate a change summary that states **what changed and why** in the words the project already uses. Describe features and interfaces, not implementation.
 
-Also produce a crisp 3-5 point summary at the top that captures the purpose of the change — what problem it solves, what it enables, and why it matters.
+The reader is a reviewer who has not seen the conversation and has not read the diff. Every bullet must stand on its own.
 
 ## When to Use
 
@@ -33,16 +33,16 @@ A markdown summary wrapped in a 4-backtick code block so inner 3-backtick fences
 
 ### Purpose
 
-- <3-5 crisp bullets: what problem this solves, what it enables, why it matters>
+- <3-5 bullets: the problem, what the change enables, why it matters>
 
 ### What changed
 
-- <bullet per feature or API change, user-facing language>
+- <one bullet per feature or interface change, in project vocabulary>
 
 ### Examples
 
 ```<lang>
-<example 1: short snippet showing usage of the new/changed API>
+<example 1: short snippet showing usage of the new or changed interface>
 ```
 
 ```<lang>
@@ -55,20 +55,29 @@ Each inner example MUST be wrapped in its own triple-backtick fence with a langu
 
 ## Workflow
 
-### Step 1: Analyze Context
+### Step 1: Collect the Project's Vocabulary
+
+Before writing a single bullet, gather the terms the project already uses. A reviewer who searches the codebase for your wording must find it.
+
+- Read the diff for the names the change introduces or touches — types, functions, endpoints, config keys, CLI flags, error messages
+- Read the README and any docs headings for the domain nouns
+- Read `git log --oneline -30` for how past changes were phrased
+- IMPORTANT: If a concept already has a name in the project, use that name everywhere in the summary — never introduce a synonym, and never rename a concept mid-summary
+
+### Step 2: Analyze Context
 
 - Review the conversation to identify features implemented and problems solved
 - Check git log and diffs to understand the full scope of changes
-- Identify public API changes, new endpoints, or user-facing behavior
+- Identify public interface changes, new endpoints, or user-facing behavior
 
-### Step 2: Draft Summary
+### Step 3: Draft Summary
 
-- Write a title that describes the outcome, max 60 characters, imperative mood
-- Write 3-5 crisp purpose bullets capturing problem, enablement, and motivation
-- List each feature or API change as a bullet in user-facing language
-- Write 2-3 code snippets showing usage of new or changed interfaces
+- Write a title that names the outcome, max 60 characters, imperative mood
+- Write 3-5 purpose bullets: the problem, what the change enables, why it matters
+- List each feature or interface change as one bullet
+- Write 2-3 snippets showing usage of new or changed interfaces
 
-### Step 3: Format Output
+### Step 4: Format Output
 
 - Wrap the entire summary in a 4-backtick fence tagged `markdown` (` ````markdown `)
 - Wrap each example snippet in its own 3-backtick fence with the appropriate language tag (`http`, `json`, `bash`, `ts`, `py`, etc.)
@@ -76,13 +85,86 @@ Each inner example MUST be wrapped in its own triple-backtick fence with a langu
 - Verify the summary is under 30 lines
 - Ensure examples are copy-pasteable and show the public interface
 
+### Step 5: Check Every Bullet
+
+Reject and rewrite any bullet that fails one of these:
+
+1. States exactly one fact a reviewer can verify against the diff
+2. Names a project term, marked in backticks when it is an identifier
+3. Runs 14 words or fewer
+4. Contains no word from the *Banned wording* list
+5. Carries no adjective that cannot be checked — "fast", "robust", "clean", "simple"
+
+## Bullet Form
+
+- One fact per bullet. Two facts joined by "and" are two bullets
+- Lead with the subject the reader knows — the endpoint, the flag, the type — not with "Added" or "We now"
+- Present tense, stating the new behavior as it now is: "`limit` defaults to 25", not "changed the default to 25"
+- Name the concrete value: the number, the default, the status code, the flag
+- No trailing periods
+- Purpose bullets state a problem or a gained capability, never the work performed
+
+## Banned Wording
+
+Replace informal or unverifiable wording with the plain term. If none of the replacements fits, name the observable behavior instead.
+
+| Avoid | Use |
+|---|---|
+| leverage, utilize | use |
+| wire up, hook up, plumb through | name what now calls what |
+| under the hood, magic | name the component |
+| refactor, clean up, tidy | name the behavior that changed, or drop the bullet |
+| just, simply, basically | drop the word |
+| blazing fast, significantly faster | give the measured number, or drop the claim |
+| handles X gracefully | state what happens on X |
+| robust, seamless, powerful, production-ready | drop the word |
+| stuff, things, a bunch of | name them |
+| kill, nuke, blow away | remove, delete |
+| spin up, stand up | start, create |
+| ship, land | release, merge |
+| boilerplate, glue code, hacky | name what the code does |
+
+DO NOT list files, internal method names, or refactoring notes — the reviewer reads the diff for those, and the summary loses its purpose as a standalone description.
+
+## Bad and Good Bullets
+
+Bad (rejected):
+
+```
+- Refactored the auth stuff to be more robust
+```
+
+(Names no interface, no verifiable fact, two unverifiable adjectives.)
+
+Good:
+
+```
+- `/auth/refresh` invalidates the old refresh token when it issues a new one
+```
+
+Bad (rejected):
+
+```
+- Wired up pagination and made the list endpoints way faster
+```
+
+(Two facts in one bullet, informal wording, unmeasured claim.)
+
+Good:
+
+```
+- Every list endpoint accepts `cursor` and `limit`
+- `limit` defaults to 25 and is capped at 100
+```
+
 ## Principles
 
-1. **Outcome over work** — title describes what the user gets, not what was done
-2. **No internals** — no file lists, no refactoring notes, no internal method names
-3. **Copy-pasteable examples** — show the public interface, not implementation
-4. **Brevity** — entire summary under 30 lines
-5. **User-facing language** — write for the reviewer, not the author
+1. **Outcome over work** — the title names what the reader gets, not what was done
+2. **Project vocabulary** — every term in the summary appears in the code or docs
+3. **One fact per bullet** — verifiable against the diff, in 14 words or fewer
+4. **No internals** — no file lists, no refactoring notes, no internal method names
+5. **Copy-pasteable examples** — show the public interface, not implementation
+6. **Brevity** — entire summary under 30 lines
 
 ## Examples
 
@@ -98,14 +180,15 @@ Each inner example MUST be wrapped in its own triple-backtick fence with a langu
 
 - API clients need secure access to protected endpoints
 - Server-side sessions do not scale across multiple instances
-- Stateless tokens eliminate shared session storage
-- Refresh rotation limits exposure window of compromised tokens
+- Stateless tokens remove the need for shared session storage
+- Rotation limits how long a stolen refresh token stays valid
 
 ### What changed
 
-- New `/auth/login` and `/auth/refresh` endpoints
-- Bearer token middleware for protected routes
-- Automatic token rotation on refresh
+- `POST /auth/login` returns an access token and a refresh token
+- `POST /auth/refresh` issues a new pair and invalidates the old refresh token
+- Protected routes require an `Authorization: Bearer` header
+- Requests without a valid access token receive `401`
 
 ### Examples
 
@@ -135,16 +218,16 @@ Authorization: Bearer <access_token>
 
 ### Purpose
 
-- Offset pagination degrades on large datasets due to row skipping
-- Cursor-based pagination maintains constant query performance
-- Clients need a stable, predictable way to page through results
-- Sensible defaults (25) and limits (100) prevent accidental overload
+- Offset pagination skips rows, so response time grows with the page number
+- Cursor pagination keeps query time constant on large tables
+- Clients keep a stable position when rows are inserted during paging
+- A capped `limit` prevents oversized responses
 
 ### What changed
 
-- All list endpoints accept `cursor` and `limit` query params
-- Responses include `next_cursor` for fetching the next page
-- Default limit set to 25, max 100
+- Every list endpoint accepts `cursor` and `limit`
+- Responses carry `next_cursor`; an absent value marks the last page
+- `limit` defaults to 25 and is capped at 100
 
 ### Examples
 
