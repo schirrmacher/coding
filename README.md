@@ -22,7 +22,7 @@ Symlinks skills and gitignore, includes gitconfig. `user.email` stays local.
 | `/commit-name` | Generate a short commit message from current changes |
 | `/mr-summary` | Generate a concise merge request summary with examples |
 | `/handover` | Create a handover doc for another agent to pick up work |
-| `/shorten` | Cut filler from a file, pasted text, or prior context — facts kept exact |
+| `/shorten` | Compress a file, pasted text, or prior context — drops what the reader can derive. Levels: `tight` (nothing lost), default, `core` |
 
 ## Git
 
