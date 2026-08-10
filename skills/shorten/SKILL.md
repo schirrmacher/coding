@@ -1,6 +1,6 @@
 ---
 name: shorten
-description: Compress text by deciding what the reader actually needs — extract the core claims, rank them, drop what is derivable or inert, then rewrite the survivors crisp. Three levels: tight (nothing lost), hard (default, lossy by design), core (ruthless). Applies to a file (rewritten in place), pasted text, or prior conversation context.
+description: "Compress text by deciding what the reader actually needs — extract the core claims, rank them, drop what is derivable or inert, then rewrite the survivors crisp. Three levels: tight (nothing lost), hard (default, lossy by design), core (ruthless). Applies to a file (rewritten in place), pasted text, or prior conversation context."
 triggers:
   - phrase: "/shorten"
   - phrase: "shorten this"
