@@ -9,6 +9,10 @@ SKILL_NAMES := $(notdir $(REPO_SKILLS))
 OUTPUT_STYLES_DIR := $(HOME)/.claude/output-styles
 OUTPUT_STYLE_NAMES := $(notdir $(wildcard $(CURDIR)/output-styles/*.md))
 
+# Symlinking a style only offers it; this key is what selects it in every project
+CLAUDE_SETTINGS := $(HOME)/.claude/settings.json
+DEFAULT_OUTPUT_STYLE := Plain
+
 GITCONFIG_PATH := $(CURDIR)/git/gitconfig
 NANORC_PATH := $(CURDIR)/nano/nanorc
 
@@ -30,6 +34,17 @@ all:
 		ln -s "$(CURDIR)/output-styles/$$name" "$(OUTPUT_STYLES_DIR)/$$name"; \
 		echo "$$name → $(OUTPUT_STYLES_DIR)/$$name"; \
 	done
+
+# Select the default style globally; /output-style only ever sets it per project
+	@if command -v jq >/dev/null 2>&1; then \
+		[ -s "$(CLAUDE_SETTINGS)" ] || echo '{}' > "$(CLAUDE_SETTINGS)"; \
+		jq --arg style "$(DEFAULT_OUTPUT_STYLE)" '.outputStyle = $$style' \
+			"$(CLAUDE_SETTINGS)" > "$(CLAUDE_SETTINGS).tmp" \
+			&& mv "$(CLAUDE_SETTINGS).tmp" "$(CLAUDE_SETTINGS)"; \
+		echo "outputStyle=$(DEFAULT_OUTPUT_STYLE) → $(CLAUDE_SETTINGS)"; \
+	else \
+		echo "jq not found; set \"outputStyle\": \"$(DEFAULT_OUTPUT_STYLE)\" in $(CLAUDE_SETTINGS) by hand"; \
+	fi
 
 # Git: global gitignore, plus include our shared gitconfig
 	@rm -f "$(HOME)/.gitignore"

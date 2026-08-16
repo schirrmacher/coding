@@ -10,7 +10,9 @@ Symlinks skills, output styles, and gitignore, includes gitconfig. `user.email` 
 
 ## Output Styles
 
-Symlinked into `~/.claude/output-styles/`. Select one with `/output-style`.
+Symlinked into `~/.claude/output-styles/`. `make` also sets `outputStyle` in
+`~/.claude/settings.json` to `DEFAULT_OUTPUT_STYLE` (currently `Plain`), which
+applies in every project. `/output-style` overrides it for one project only.
 
 | Style | What it does |
 |---|---|
