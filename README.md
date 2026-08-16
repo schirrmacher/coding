@@ -6,7 +6,15 @@ Personal dotfiles and Claude Code skills. Run `make` to install.
 make
 ```
 
-Symlinks skills and gitignore, includes gitconfig. `user.email` stays local.
+Symlinks skills, output styles, and gitignore, includes gitconfig. `user.email` stays local.
+
+## Output Styles
+
+Symlinked into `~/.claude/output-styles/`. Select one with `/output-style`.
+
+| Style | What it does |
+|---|---|
+| `Plain` | States what changed and why in project vocabulary. One fact per sentence, no filler, no unverifiable adjectives, no recaps. |
 
 ## Claude Code Skills
 

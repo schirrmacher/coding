@@ -5,6 +5,10 @@ SKILL_DESTS := $(CLAUDE_SKILLS_DIR) $(OPENCODE_SKILLS_DIR)
 REPO_SKILLS := $(shell find $(CURDIR)/skills -mindepth 1 -maxdepth 1 -type d)
 SKILL_NAMES := $(notdir $(REPO_SKILLS))
 
+# Output styles are Claude Code only; opencode has no equivalent
+OUTPUT_STYLES_DIR := $(HOME)/.claude/output-styles
+OUTPUT_STYLE_NAMES := $(notdir $(wildcard $(CURDIR)/output-styles/*.md))
+
 GITCONFIG_PATH := $(CURDIR)/git/gitconfig
 NANORC_PATH := $(CURDIR)/nano/nanorc
 
@@ -17,6 +21,14 @@ all:
 			ln -s "$(CURDIR)/skills/$$name" "$$dest/$$name"; \
 			echo "$$name → $$dest/$$name"; \
 		done; \
+	done
+
+# Symlink every output style into Claude Code's output-styles dir
+	@mkdir -p "$(OUTPUT_STYLES_DIR)"
+	@for name in $(OUTPUT_STYLE_NAMES); do \
+		rm -rf "$(OUTPUT_STYLES_DIR)/$$name"; \
+		ln -s "$(CURDIR)/output-styles/$$name" "$(OUTPUT_STYLES_DIR)/$$name"; \
+		echo "$$name → $(OUTPUT_STYLES_DIR)/$$name"; \
 	done
 
 # Git: global gitignore, plus include our shared gitconfig
