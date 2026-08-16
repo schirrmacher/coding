@@ -7,6 +7,7 @@ make
 ```
 
 Symlinks skills, output styles, and gitignore, includes gitconfig. `user.email` stays local.
+opencode has no output styles, so `make` adds the same style file to its `instructions` list.
 
 ## Output Styles
 
@@ -16,7 +17,7 @@ applies in every project. `/output-style` overrides it for one project only.
 
 | Style | What it does |
 |---|---|
-| `Plain` | States what changed and why in project vocabulary. One fact per sentence, no filler, no unverifiable adjectives, no recaps. |
+| `Plain` | States what changed and why in project vocabulary. One fact per sentence, no filler, no unverifiable adjectives, no LLM sentence patterns. |
 
 ## Claude Code Skills
 

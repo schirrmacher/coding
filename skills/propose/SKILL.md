@@ -11,7 +11,9 @@ triggers:
   - phrase: "propose an architecture"
 ---
 
-# Propose — Concrete Design Options
+# Propose
+
+Concrete design options.
 
 ## Purpose
 
@@ -21,34 +23,34 @@ Before committing to a direction, present 1-3 options as **code**. Let the snipp
 
 The artifact changes by what's being proposed; the structure does not.
 
-- **Code / API** (default) — usage snippets showing how the caller would write it
-- **Architecture** — a structural sketch: an ASCII diagram or file tree. Triggered by "propose an architecture", "how should we structure…", "service boundaries", "data flow"
-- **Naming** — a ranked list of candidate names. Triggered by "propose a name", "what should we call…", "rename…", "name ideas", "suggest a name"
+- **Code / API** (default): usage snippets showing how the caller would write it
+- **Architecture**: a structural sketch: an ASCII diagram or file tree. Triggered by "propose an architecture", "how should we structure…", "service boundaries", "data flow"
+- **Naming**: a ranked list of candidate names. Triggered by "propose a name", "what should we call…", "rename…", "name ideas", "suggest a name"
 
 If the phrasing is ambiguous, pick the matching mode; don't ask unless the modes diverge wildly.
 
 ## When to Use
 
-1. **Manual invocation** — user types `/propose <design question>`
-2. **Pre-implementation** — "what's the best way to..." or "how should I design..."
-3. **Naming** — "what should we call this" or "propose a name for…"
-4. **Architecture** — "how should this be structured" or "where should X live"
-5. **Proactive** — when there are multiple viable shapes and you'd otherwise pick one silently
+1. **Manual invocation**: user types `/propose <design question>`
+2. **Pre-implementation**: "what's the best way to..." or "how should I design..."
+3. **Naming**: "what should we call this" or "propose a name for…"
+4. **Architecture**: "how should this be structured" or "where should X live"
+5. **Proactive**: when there are multiple viable shapes and you'd otherwise pick one silently
 
 Skip if there's only one reasonable option or the design is trivial.
 
 ## What It Produces
 
-**Code / Architecture** — 1–3 options. Each option is:
+**Code / Architecture**: 1-3 options. Each option is:
 
 - A numbered **label** that names its character (`Option N: <what it is>`, not just "Option N")
-- A **code artifact** — the usage snippet (Code) or sketch (Architecture). This is the whole option.
+- A **code artifact**: the usage snippet (Code) or sketch (Architecture). This is the whole option.
 
-No tradeoff sentences. No supporting paragraphs. If a cost matters, put it in a one-line `// comment` inside the snippet — never a prose block.
+No tradeoff sentences. No supporting paragraphs. If a cost matters, put it in a one-line `// comment` inside the snippet, never a prose block.
 
-Close with **Pick:** — one line: the option and the deciding factor. Nothing more.
+Close with **Pick:**, one line giving the option and the deciding factor. Nothing more.
 
-**Naming** — a plain bullet list of 3–10 candidates, no notes:
+**Naming**: a plain bullet list of 3-10 candidates, no notes:
 
 ```
 ## Names for <thing>
@@ -57,7 +59,7 @@ Close with **Pick:** — one line: the option and the deciding factor. Nothing m
 - `anotherName`
 - `yetAnotherName`
 
-**Pick:** `recommendedName` — deciding factor.
+**Pick:** `recommendedName`, deciding factor.
 ```
 
 ## Workflow
@@ -92,7 +94,7 @@ Cap at 3 for code/architecture. If more come to mind, drop the weakest.
 
 ### Step 4: Show the Code
 
-Lead each option with its code artifact — the caller's snippet (Code) or the diagram/tree (Architecture). This is the option. No framing prose around it.
+Lead each option with its code artifact: the caller's snippet (Code) or the diagram/tree (Architecture). This is the option. No framing prose around it.
 
 **Naming mode** ends here: a plain bullet list of candidates, then the **Pick** line.
 
@@ -102,12 +104,12 @@ One line. The option and the deciding factor. Leaving the choice open pushes the
 
 ## Principles
 
-1. **Code, not prose** — the snippet is the proposal; everything else is noise
-2. **Costs go in comments** — if a tradeoff matters, it's a one-line `//` inside the snippet, never a paragraph
-3. **Idiomatic to the stack** — every option looks native; match repo patterns before importing outside ones
-4. **Distinct shapes** — options differ on a real axis, not cosmetics
-5. **At most three** — more options dilute the decision (naming: 3–10 candidates)
-6. **Always pick** — one line naming the option and the deciding factor
+1. **Code, not prose**: the snippet is the proposal; everything else is noise
+2. **Costs go in comments**: if a tradeoff matters, it's a one-line `//` inside the snippet, never a paragraph
+3. **Idiomatic to the stack**: every option looks native; match repo patterns before importing outside ones
+4. **Distinct shapes**: options differ on a real axis, not cosmetics
+5. **At most three**: more options dilute the decision (naming: 3–10 candidates)
+6. **Always pick**: one line naming the option and the deciding factor
 
 ## Examples
 
@@ -145,7 +147,7 @@ const user = await client.get('/users/1')
 const report = await client.get('/reports/heavy', { retry: { attempts: 0 } })
 ```
 
-**Pick:** Default with override — most calls stay terse; outliers opt out without a second client.
+**Pick:** Default with override. Most calls stay terse; outliers opt out without a second client.
 ````
 
 **Input**: `/propose API for feature flag checks in TypeScript`
@@ -189,7 +191,7 @@ if (Flags.CheckoutV2.isEnabled({ userId })) {
 - `permissionsFor`
 - `mergedPermissionsFor`
 
-**Pick:** `effectivePermissionsFor` — names the concept and fits the `rolesFor` / `overridesFor` suffix family.
+**Pick:** `effectivePermissionsFor`, which names the concept and fits the `rolesFor` / `overridesFor` suffix family.
 ````
 
 **Input**: `/propose an architecture for the new ingestion pipeline`
@@ -222,7 +224,7 @@ if (Flags.CheckoutV2.isEnabled({ userId })) {
 // each stage scales/fails alone; three services + three queues to own
 ```
 
-**Pick:** Queue between intake and processing — decouples intake from variable enrichment cost without the tax of stage-per-service; split further later if one stage bottlenecks.
+**Pick:** Queue between intake and processing. It decouples intake from variable enrichment cost without the tax of stage-per-service; split further later if one stage bottlenecks.
 ````
 
 **Input**: `/propose how to expose pagination on the list endpoints`
@@ -252,5 +254,5 @@ GET /api/users?limit=20&cursor=eyJpZCI6NDB9
 { "data": [], "next_cursor": "eyJpZCI6NjB9" }
 ```
 
-**Pick:** Cursor — the list endpoints are append-mostly feeds; nobody needs random-access paging and the perf curve stays flat.
+**Pick:** Cursor. The list endpoints are append-mostly feeds; nobody needs random-access paging and the perf curve stays flat.
 ````

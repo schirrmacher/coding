@@ -10,24 +10,26 @@ triggers:
   - phrase: "refactor for clarity"
 ---
 
-# Improve Readability — Code Clarity Framework
+# Improve Readability
+
+Code clarity framework.
 
 ## Purpose
 
 Improve the **readability** of the code specified by `$ARGUMENTS`. Apply six targeted transformations that make code easier to scan, understand, and maintain:
 
-- **Flatten nesting** — guard clauses and early exits first, main logic at one indent level
-- **Extract inline complexity** — move complex inline data structures and closures into named variables or functions
-- **Rename for clarity** — names must be understandable in their surrounding context
-- **Group by cohesion** — cluster related lines together, separate groups with blank lines
-- **Comment only the why** — only when the reason cannot be expressed as code
-- **Order deliberately** — arrange code by what the reader needs to understand first
+- **Flatten nesting**: guard clauses and early exits first, main logic at one indent level
+- **Extract inline complexity**: move complex inline data structures and closures into named variables or functions
+- **Rename for clarity**: names must be understandable in their surrounding context
+- **Group by cohesion**: cluster related lines together, separate groups with blank lines
+- **Comment only the why**: only when the reason cannot be expressed as code
+- **Order deliberately**: arrange code by what the reader needs to understand first
 
 ## When to Use
 
-1. **Manual invocation** — user types `/improve-readability <file|code-target>`
-2. **Post-implementation** — user asks to "clean up" or "make this more readable"
-3. **Proactive** — user says "flatten nesting", "refactor for clarity", or "improve readability"
+1. **Manual invocation**: user types `/improve-readability <file|code-target>`
+2. **Post-implementation**: user asks to "clean up" or "make this more readable"
+3. **Proactive**: user says "flatten nesting", "refactor for clarity", or "improve readability"
 
 ## What It Produces
 
@@ -41,16 +43,16 @@ In-place edits that preserve identical behavior:
 
 ### Step 1: Flatten Nesting
 
-- Find any branch whose body exits the surrounding scope — `return`, `continue`, `break`, `throw`, `panic` — regardless of the construct it lives in (`if`, `match`/`switch` arm, `case`, `try/catch`, destructure-with-fallback)
+- Find any branch whose body exits the surrounding scope (`return`, `continue`, `break`, `throw`, `panic`) regardless of the construct it lives in (`if`, `match`/`switch` arm, `case`, `try/catch`, destructure-with-fallback)
 - Lift each terminating branch to a flat guard clause at the base indent of its scope, even when it means inverting a `match` or `switch` into an `if let` / early-exit form
-- Test: if you delete the main body after the branch, does the branch still make sense on its own? If yes, it's a guard — lift it
+- Test: if you delete the main body after the branch, does the branch still make sense on its own? If yes, it's a guard. Lift it
 - Keep main logic at a single indent level
 
 ### Step 2: Extract Inline Complexity
 
 - Find complex inline data structures, closures, and deeply nested object literals passed as arguments
 - Pull them into named variables or functions above the call
-- Prefer a named local over a single-use helper — promote to a function only when there's a second call site, the name needs to appear in stack traces, or inlining would re-nest the caller
+- Prefer a named local over a single-use helper. Promote to a function only when there's a second call site, the name needs to appear in stack traces, or inlining would re-nest the caller
 - Make the call site scannable at a glance
 
 ### Step 3: Rename for Clarity
@@ -75,17 +77,17 @@ In-place edits that preserve identical behavior:
 
 Apply as the final step after all other changes:
 
-- **Critical configuration and variables** — at the top
-- **Core purpose** — the most interesting or important part next, not boilerplate or helpers
-- **Supporting details** — utilities and edge cases last
-- **Cohesion groups** — in logical reading order
+- **Critical configuration and variables**: at the top
+- **Core purpose**: the most interesting or important part next, not boilerplate or helpers
+- **Supporting details**: utilities and edge cases last
+- **Cohesion groups**: in logical reading order
 
 ## Principles
 
-1. **Never change logic** — only flatten, extract, rename, group, comment, and reorder
-2. **Verify identical behavior** — mentally confirm nothing changes functionally
-3. **No conversation references** — never add comments about the refactoring itself
-4. **Why over what** — explain design decisions, not code mechanics
+1. **Never change logic**: only flatten, extract, rename, group, comment, and reorder
+2. **Verify identical behavior**: mentally confirm nothing changes functionally
+3. **No conversation references**: never add comments about the refactoring itself
+4. **Why over what**: explain design decisions, not code mechanics
 
 ## Examples
 
@@ -122,9 +124,9 @@ process(order)
   return order
 ```
 
-### Flatten nesting — terminating match/switch arms
+### Flatten nesting: terminating match/switch arms
 
-Bad — the failure arm is a mini state machine buried inside a value-binding match; the success arm is trivial. The reader has to parse both arms to see the control flow:
+Bad: the failure arm is a mini state machine buried inside a value-binding match; the success arm is trivial. The reader has to parse both arms to see the control flow:
 
 ```
 validated = match result:
@@ -138,7 +140,7 @@ validated = match result:
     continue
 ```
 
-Good — the terminating arm becomes a flat guard; the happy path falls through at base indent:
+Good: the terminating arm becomes a flat guard; the happy path falls through at base indent:
 
 ```
 if result is failure(detail)
@@ -152,7 +154,7 @@ if result is failure(detail)
 validated = result.value
 ```
 
-The tell for this transform: one arm is trivial (just binds the value), the other is substantive with its own branching and exits. The match is disguised control flow — lift the substantive arm to a guard.
+The tell for this transform: one arm is trivial (just binds the value), the other is substantive with its own branching and exits. The match is disguised control flow. Lift the substantive arm to a guard.
 
 ### Rename for clarity
 
@@ -172,9 +174,9 @@ discountedTotal(orders, rate, minAmount)
   return eligible.reduce((sum, o) => sum + o.amount * rate, 0)
 ```
 
-### Extract inline complexity — inline literal arguments
+### Extract inline complexity: inline literal arguments
 
-Bad — the inline literal pushes the call apart vertically; the reader has to scan 7 lines to see what `emit` is being called with:
+Bad: the inline literal pushes the call apart vertically; the reader has to scan 7 lines to see what `emit` is being called with:
 
 ```
 emit(
@@ -188,7 +190,7 @@ emit(
 )
 ```
 
-Good — name the constructed value, then pass the name. The call collapses to one scannable line; the literal's meaning is carried by the variable name:
+Good: name the constructed value, then pass the name. The call collapses to one scannable line; the literal's meaning is carried by the variable name:
 
 ```
 agentEnd = {
@@ -200,11 +202,11 @@ agentEnd = {
 emit(runtime, spec, agentEnd)
 ```
 
-Applies whenever a function call's arguments span multiple lines purely because of an inline literal — even a small one. The indented block inside a call is an anonymous value; giving it a name splits "what is this value" from "what do we do with it."
+Applies whenever a function call's arguments span multiple lines purely because of an inline literal, even a small one. The indented block inside a call is an anonymous value; giving it a name splits "what is this value" from "what do we do with it."
 
 ### Extract inline complexity
 
-Bad — data structure and closure inline obscure the call:
+Bad: data structure and closure inline obscure the call:
 
 ```
 schedule({
@@ -221,7 +223,7 @@ schedule({
 })
 ```
 
-Good — named variable and function make the call scannable:
+Good: named variable and function make the call scannable:
 
 ```
 retryPolicy = { initial: 100, max: 5000, factor: 2 }
@@ -243,7 +245,7 @@ retryOrAlert(err, ctx)
 
 ### Extract deeply nested object literals
 
-Bad — nested JSON built inline inside a function call:
+Bad: nested JSON built inline inside a function call:
 
 ```
 createClient(
@@ -262,7 +264,7 @@ createClient(
 )
 ```
 
-Good — each concern extracted into a named variable:
+Good: each concern extracted into a named variable:
 
 ```
 scopes = ['read', 'write', 'admin']
@@ -287,7 +289,7 @@ createClient(config)
 
 ### Group by cohesion
 
-Bad — dense wall of loosely related lines:
+Bad: dense wall of loosely related lines:
 
 ```
 initApp()
@@ -305,7 +307,7 @@ initApp()
   logger.info('started on ' + config.port)
 ```
 
-Good — grouped by concern with blank lines between:
+Good: grouped by concern with blank lines between:
 
 ```
 initApp()
@@ -327,14 +329,14 @@ initApp()
 
 ### Comments
 
-Bad — restating the code:
+Bad: restating the code:
 
 ```
 // set status to active
 user.status = 'active'
 ```
 
-Good — explaining a non-obvious reason:
+Good: explaining a non-obvious reason:
 
 ```
 // prefer reactivation over new account to retain history
@@ -343,7 +345,7 @@ user.status = 'active'
 
 ### Order deliberately
 
-Bad — file level: config buried, helpers before purpose, related pieces scattered:
+Bad: file level: config buried, helpers before purpose, related pieces scattered:
 
 ```
 delay(ms) -> ...
@@ -365,7 +367,7 @@ export updateProfile(id, data, token) -> ...
 formatProfile(raw) -> ...
 ```
 
-Good — file level: config at top, then the interesting part, then supporting pieces grouped by what they support:
+Good: file level: config at top, then the interesting part, then supporting pieces grouped by what they support:
 
 ```
 RETRIES = 3
@@ -385,7 +387,7 @@ buildHeaders(token) -> ...
 delay(ms) -> ...
 ```
 
-Bad — class level: internals before the interface, construction mixed with behavior:
+Bad: class level: internals before the interface, construction mixed with behavior:
 
 ```
 class OrderProcessor
@@ -402,7 +404,7 @@ class OrderProcessor
   cancel(orderId) -> ...
 ```
 
-Good — class level: construction, then public interface, then internals:
+Good: class level: construction, then public interface, then internals:
 
 ```
 class OrderProcessor
@@ -418,7 +420,7 @@ class OrderProcessor
   _reserveStock(items) -> ...
 ```
 
-Bad — function level: concerns scattered, reader can't tell what matters:
+Bad: function level: concerns scattered, reader can't tell what matters:
 
 ```
 deployService(service, env)
@@ -440,7 +442,7 @@ deployService(service, env)
   return instance
 ```
 
-Good — function level: config, then guard rails, then the interesting part (build, deploy, verify):
+Good: function level: config, then guard rails, then the interesting part (build, deploy, verify):
 
 ```
 deployService(service, env)

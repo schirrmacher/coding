@@ -9,7 +9,9 @@ triggers:
   - phrase: "PR description"
 ---
 
-# Change Summary — Change Description Generator
+# Change Summary
+
+Change description generator.
 
 ## Purpose
 
@@ -19,9 +21,9 @@ The reader is a reviewer who has not seen the conversation and has not read the 
 
 ## When to Use
 
-1. **Manual invocation** — user types `/change-summary` before opening a merge request
-2. **Post-feature** — user asks to "summarize changes" or "write a PR description"
-3. **Proactive** — user says "I need a summary for this branch"
+1. **Manual invocation**: user types `/change-summary` before opening a merge request
+2. **Post-feature**: user asks to "summarize changes" or "write a PR description"
+3. **Proactive**: user says "I need a summary for this branch"
 
 ## What It Produces
 
@@ -51,7 +53,7 @@ A markdown summary wrapped in a 4-backtick code block so inner 3-backtick fences
 ````
 `````
 
-Each inner example MUST be wrapped in its own triple-backtick fence with a language tag (e.g. `http`, `json`, `bash`, `ts`, `py`). Do not paste raw snippets without fences — they will not render as code.
+Each inner example MUST be wrapped in its own triple-backtick fence with a language tag (e.g. `http`, `json`, `bash`, `ts`, `py`). Do not paste raw snippets without fences, because they will not render as code.
 
 ## Workflow
 
@@ -59,10 +61,10 @@ Each inner example MUST be wrapped in its own triple-backtick fence with a langu
 
 Before writing a single bullet, gather the terms the project already uses. A reviewer who searches the codebase for your wording must find it.
 
-- Read the diff for the names the change introduces or touches — types, functions, endpoints, config keys, CLI flags, error messages
+- Read the diff for the names the change introduces or touches: types, functions, endpoints, config keys, CLI flags, error messages
 - Read the README and any docs headings for the domain nouns
 - Read `git log --oneline -30` for how past changes were phrased
-- IMPORTANT: If a concept already has a name in the project, use that name everywhere in the summary — never introduce a synonym, and never rename a concept mid-summary
+- IMPORTANT: If a concept already has a name in the project, use that name everywhere in the summary. Never introduce a synonym, and never rename a concept mid-summary
 
 ### Step 2: Analyze Context
 
@@ -81,7 +83,7 @@ Before writing a single bullet, gather the terms the project already uses. A rev
 
 - Wrap the entire summary in a 4-backtick fence tagged `markdown` (` ````markdown `)
 - Wrap each example snippet in its own 3-backtick fence with the appropriate language tag (`http`, `json`, `bash`, `ts`, `py`, etc.)
-- Never leave example code as bare text — every snippet must be inside a fenced block
+- Never leave example code as bare text. Every snippet must be inside a fenced block
 - Verify the summary is under 30 lines
 - Ensure examples are copy-pasteable and show the public interface
 
@@ -92,39 +94,15 @@ Reject and rewrite any bullet that fails one of these:
 1. States exactly one fact a reviewer can verify against the diff
 2. Names a project term, marked in backticks when it is an identifier
 3. Runs 14 words or fewer
-4. Contains no word from the *Banned wording* list
-5. Carries no adjective that cannot be checked — "fast", "robust", "clean", "simple"
+4. Contains no word from the Plain style's banned vocabulary
+5. Carries no adjective that cannot be checked, such as "fast", "robust", "clean", "simple"
 
 ## Bullet Form
 
-- One fact per bullet. Two facts joined by "and" are two bullets
-- Lead with the subject the reader knows — the endpoint, the flag, the type — not with "Added" or "We now"
-- Present tense, stating the new behavior as it now is: "`limit` defaults to 25", not "changed the default to 25"
-- Name the concrete value: the number, the default, the status code, the flag
 - No trailing periods
 - Purpose bullets state a problem or a gained capability, never the work performed
 
-## Banned Wording
-
-Replace informal or unverifiable wording with the plain term. If none of the replacements fits, name the observable behavior instead.
-
-| Avoid | Use |
-|---|---|
-| leverage, utilize | use |
-| wire up, hook up, plumb through | name what now calls what |
-| under the hood, magic | name the component |
-| refactor, clean up, tidy | name the behavior that changed, or drop the bullet |
-| just, simply, basically | drop the word |
-| blazing fast, significantly faster | give the measured number, or drop the claim |
-| handles X gracefully | state what happens on X |
-| robust, seamless, powerful, production-ready | drop the word |
-| stuff, things, a bunch of | name them |
-| kill, nuke, blow away | remove, delete |
-| spin up, stand up | start, create |
-| ship, land | release, merge |
-| boilerplate, glue code, hacky | name what the code does |
-
-DO NOT list files, internal method names, or refactoring notes — the reviewer reads the diff for those, and the summary loses its purpose as a standalone description.
+DO NOT list files, internal method names, or refactoring notes. The reviewer reads the diff for those, and the summary loses its purpose as a standalone description.
 
 ## Bad and Good Bullets
 
@@ -159,12 +137,12 @@ Good:
 
 ## Principles
 
-1. **Outcome over work** — the title names what the reader gets, not what was done
-2. **Project vocabulary** — every term in the summary appears in the code or docs
-3. **One fact per bullet** — verifiable against the diff, in 14 words or fewer
-4. **No internals** — no file lists, no refactoring notes, no internal method names
-5. **Copy-pasteable examples** — show the public interface, not implementation
-6. **Brevity** — entire summary under 30 lines
+1. **Outcome over work**: the title names what the reader gets, not what was done
+2. **Project vocabulary**: every term in the summary appears in the code or docs
+3. **One fact per bullet**: verifiable against the diff, in 14 words or fewer
+4. **No internals**: no file lists, no refactoring notes, no internal method names
+5. **Copy-pasteable examples**: show the public interface, not implementation
+6. **Brevity**: entire summary under 30 lines
 
 ## Examples
 

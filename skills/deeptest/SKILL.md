@@ -9,24 +9,26 @@ triggers:
   - phrase: "challenge the tests"
 ---
 
-# Deep Test — Test Suite Audit
+# Deep Test
+
+Test suite audit.
 
 ## Purpose
 
 Audit tests in the target code and challenge whether each one reads like documentation for the API under test. Focus on **test suites exercising public APIs by default**, or narrow to a specific file, class, or layer when the user specifies one. Read each test as if encountering the API for the first time, then ask hard questions:
 
-- **Purpose** — does each test have one clear reason to exist?
-- **Naming** — does the test name state the behavior being verified?
-- **Abstraction** — does the test exercise the API at the level users call it?
-- **Clarity** — can a reader learn how to use the API by reading the test?
-- **State transitions** — for stateful subjects, are the actions performed and the resulting state changes made visible through the public API?
+- **Purpose**: does each test have one clear reason to exist?
+- **Naming**: does the test name state the behavior being verified?
+- **Abstraction**: does the test exercise the API at the level users call it?
+- **Clarity**: can a reader learn how to use the API by reading the test?
+- **State transitions**: for stateful subjects, are the actions performed and the resulting state changes made visible through the public API?
 
 ## When to Use
 
-1. **Manual invocation** — user types `/deeptest <folder|file|class>` to audit tests around a target, or `/deeptest <target> --scope unit|integration|all` to choose a test layer
-2. **Pre-release** — user asks to "review the tests" or "audit the tests"
-3. **Proactive** — user says "simplify the tests" or "challenge the tests"
-4. **Scoped** — user asks to review specific tests, e.g., "audit the tests for OrderProcessor" or "review tests in cache.spec.ts"
+1. **Manual invocation**: user types `/deeptest <folder|file|class>` to audit tests around a target, or `/deeptest <target> --scope unit|integration|all` to choose a test layer
+2. **Pre-release**: user asks to "review the tests" or "audit the tests"
+3. **Proactive**: user says "simplify the tests" or "challenge the tests"
+4. **Scoped**: user asks to review specific tests, e.g., "audit the tests for OrderProcessor" or "review tests in cache.spec.ts"
 
 ## What It Produces
 
@@ -70,10 +72,10 @@ For each test:
 
 Read each test and ask:
 
-- **One reason to exist?** — does the test verify a single observable behavior, or is it a grab-bag of assertions across unrelated concerns?
-- **Named after behavior?** — does the name describe what the API does (e.g. `rejects_orders_with_expired_coupon`) rather than the method called (`test_submit`)?
-- **Name matches body?** — does the body actually verify what the name claims, with no surprise assertions?
-- **Redundant with a sibling?** — does another test already cover this exact behavior with different inputs?
+- **One reason to exist?**: does the test verify a single observable behavior, or is it a grab-bag of assertions across unrelated concerns?
+- **Named after behavior?**: does the name describe what the API does (e.g. `rejects_orders_with_expired_coupon`) rather than the method called (`test_submit`)?
+- **Name matches body?**: does the body actually verify what the name claims, with no surprise assertions?
+- **Redundant with a sibling?**: does another test already cover this exact behavior with different inputs?
 
 Flag every test whose purpose is unclear, mislabeled, or duplicated.
 
@@ -81,10 +83,10 @@ Flag every test whose purpose is unclear, mislabeled, or duplicated.
 
 Compare each test to how real callers use the API and ask:
 
-- **Tests the API, not the internals?** — does the test call a public entry point, or does it poke at private state, patched internals, or field assignments?
-- **Uses the public surface the way users would?** — does the arrange/act sequence mirror a realistic caller, or does it set up an artificial scaffold that only this test uses?
-- **Mock at the seam, not the subject?** — are collaborators mocked at trust boundaries (network, clock, DB) rather than the very class under test?
-- **Asserts outcomes, not call logs?** — does the test check observable results or does it verify that internal methods were called in a specific order?
+- **Tests the API, not the internals?**: does the test call a public entry point, or does it poke at private state, patched internals, or field assignments?
+- **Uses the public API the way users would?**: does the arrange/act sequence mirror a realistic caller, or does it set up artificial fixtures that only this test uses?
+- **Mock at the seam, not the subject?**: are collaborators mocked at trust boundaries (network, clock, DB) rather than the very class under test?
+- **Asserts outcomes, not call logs?**: does the test check observable results or does it verify that internal methods were called in a specific order?
 
 Flag every test that exercises implementation detail instead of behavior.
 
@@ -92,12 +94,12 @@ Flag every test that exercises implementation detail instead of behavior.
 
 For tests against stateful systems (stores, caches, state machines, aggregates, long-lived services), ask:
 
-- **Actions visible?** — does the test spell out each action performed on the subject, in order, so the reader can replay the scenario?
-- **State observable through the API?** — is the resulting state read back through a public query rather than by peeking at private fields or the database?
-- **Before and after asserted?** — does the test establish the starting state, then assert the state after the action, so the transition is *shown* rather than implied?
-- **One transition per test?** — does each test focus on a single action's effect, so a failure points to the exact transition that broke?
-- **Setup uses the same API?** — is the starting state built by calling real actions (e.g. `deposit`, `register`) rather than hand-constructing an internal object that bypasses invariants?
-- **Illegal transitions covered?** — is there a test showing what happens when an action is invoked in a state that disallows it, and that the state did not silently change?
+- **Actions visible?**: does the test spell out each action performed on the subject, in order, so the reader can replay the scenario?
+- **State observable through the API?**: is the resulting state read back through a public query rather than by peeking at private fields or the database?
+- **Before and after asserted?**: does the test establish the starting state, then assert the state after the action, so the transition is *shown* rather than implied?
+- **One transition per test?**: does each test focus on a single action's effect, so a failure points to the exact transition that broke?
+- **Setup uses the same API?**: is the starting state built by calling real actions (e.g. `deposit`, `register`) rather than hand-constructing an internal object that bypasses invariants?
+- **Illegal transitions covered?**: is there a test showing what happens when an action is invoked in a state that disallows it, and that the state did not silently change?
 
 Flag every stateful test where the reader cannot see which actions were performed or how the state moved as a result.
 
@@ -105,11 +107,11 @@ Flag every stateful test where the reader cannot see which actions were performe
 
 Read each test as documentation for a new reader and ask:
 
-- **Setup noise?** — is the arrange block dominated by variable assignments that obscure what actually matters? Could a factory, builder, or fixture hide that complexity?
-- **Magic values?** — do literals like `42`, `"foo"`, or `true` carry meaning that should be named (`EXPIRED_COUPON`, `ADMIN_USER`)?
-- **Act step buried?** — is the single line that calls the API hard to find among setup and assertion code?
-- **Assertions tell a story?** — does the assert block read as a clear statement about the API's contract, or is it a pile of low-level field checks?
-- **Reads top-to-bottom?** — can the reader follow given/when/then without scrolling, jumping to helpers, or decoding clever DSLs?
+- **Setup noise?**: is the arrange block dominated by variable assignments that obscure what actually matters? Could a factory, builder, or fixture hide that complexity?
+- **Magic values?**: do literals like `42`, `"foo"`, or `true` carry meaning that should be named (`EXPIRED_COUPON`, `ADMIN_USER`)?
+- **Act step buried?**: is the single line that calls the API hard to find among setup and assertion code?
+- **Assertions tell a story?**: does the assert block read as a clear statement about the API's contract, or is it a pile of low-level field checks?
+- **Reads top-to-bottom?**: can the reader follow given/when/then without scrolling, jumping to helpers, or decoding clever DSLs?
 
 Flag every test that a new reader would struggle to learn from.
 
@@ -117,10 +119,10 @@ Flag every test that a new reader would struggle to learn from.
 
 Look at the full test map for the target and ask:
 
-- **Missing behaviors?** — are there public operations with no test that demonstrates intended usage?
-- **Happy-path only?** — are error cases, edge conditions, and boundary values tested at the same interface level as the happy path?
-- **Overlapping cases?** — do multiple tests exercise the same branch with trivially different inputs, adding noise but no coverage?
-- **Wrong layer?** — is the behavior tested deep in a unit test when it really belongs as an integration or contract test (or vice versa)?
+- **Missing behaviors?**: are there public operations with no test that demonstrates intended usage?
+- **Happy-path only?**: are error cases, edge conditions, and boundary values tested at the same interface level as the happy path?
+- **Overlapping cases?**: do multiple tests exercise the same branch with trivially different inputs, adding noise but no coverage?
+- **Wrong layer?**: is the behavior tested deep in a unit test when it really belongs as an integration or contract test (or vice versa)?
 
 Propose concrete merges, deletions, renames, or additions.
 
@@ -133,14 +135,14 @@ Propose concrete merges, deletions, renames, or additions.
 
 ## Principles
 
-1. **Tests are documentation** — a reader should learn how to use the API by reading the tests, in the order a caller would encounter them
-2. **Name states the behavior** — the test name is the first line of that documentation; it must describe what is verified, not what is called
-3. **One test, one reason to fail** — a test asserts a single behavior so a failure points to one cause
-4. **Use the API like a user** — the arrange/act/assert shape must mirror how real callers hold the API, not how the implementation is wired
-5. **Hide setup, highlight intent** — push scaffolding into factories, builders, and fixtures so the test body reads as a short story about behavior
-6. **Assert outcomes, not mechanics** — verify observable effects, not which internal methods were called in which order
-7. **State changes must be shown** — for stateful subjects, tests must make each action explicit and read the resulting state back through the public API; never peek at internals to prove a transition
-8. **Evidence-based** — every finding references a concrete test by file and name, not theory
+1. **Tests are documentation**: a reader should learn how to use the API by reading the tests, in the order a caller would encounter them
+2. **Name states the behavior**: the test name is the first line of that documentation; it must describe what is verified, not what is called
+3. **One test, one reason to fail**: a test asserts a single behavior so a failure points to one cause
+4. **Use the API like a user**: the arrange/act/assert shape must mirror how real callers hold the API, not how the implementation is wired
+5. **Hide setup, highlight intent**: push setup into factories, builders, and fixtures so the test body reads as a short story about behavior
+6. **Assert outcomes, not mechanics**: verify observable effects, not which internal methods were called in which order
+7. **State changes must be shown**: for stateful subjects, tests must make each action explicit and read the resulting state back through the public API; never peek at internals to prove a transition
+8. **Evidence-based**: every finding references a concrete test by file and name, not theory
 
 ## Examples
 
@@ -155,7 +157,7 @@ Propose concrete merges, deletions, renames, or additions.
 
 | Test                                        | Subject             | Intent                              |
 |---------------------------------------------|---------------------|-------------------------------------|
-| test_submit_1                               | OrderService.submit | unclear — multiple assertions       |
+| test_submit_1                               | OrderService.submit | unclear, multiple assertions       |
 | test_submit_works                           | OrderService.submit | happy path, name says nothing       |
 | it_charges_customer_and_reserves_stock      | OrderService.submit | combined behavior, two reasons      |
 | rejects_submit_when_cart_is_empty           | OrderService.submit | empty cart guard                    |
@@ -173,17 +175,17 @@ Propose concrete merges, deletions, renames, or additions.
 
 ### Findings
 
-1. **Naming** — test_submit_1, test_submit_works give no signal about
+1. **Naming**: test_submit_1, test_submit_works give no signal about
    the behavior under test; a failing CI log tells the reader nothing
-2. **Purpose** — it_charges_customer_and_reserves_stock bundles two
+2. **Purpose**: it_charges_customer_and_reserves_stock bundles two
    independent outcomes; split so each failure has one cause
-3. **Abstraction** — test_internal_validate_called_once reaches into
+3. **Abstraction**: test_internal_validate_called_once reaches into
    the implementation; replace with an outcome-based assertion on the
    public result
-4. **Clarity** — every submit test rebuilds Order and Customer inline
+4. **Clarity**: every submit test rebuilds Order and Customer inline
    with 8+ fields; extract an anOrder() builder so the body shows
    only what is specific to each case
-5. **Coverage** — no test demonstrates submit with an expired coupon,
+5. **Coverage**: no test demonstrates submit with an expired coupon,
    a documented supported input
 
 ### Recommendations
@@ -225,17 +227,17 @@ Propose concrete merges, deletions, renames, or additions.
 
 ### Findings
 
-1. **Purpose** — cache get returns value and cache set works verify
+1. **Purpose**: cache get returns value and cache set works verify
    the same behavior with different phrasing; merge
-2. **Naming** — test getOrSet does not tell the reader what the
+2. **Naming**: test getOrSet does not tell the reader what the
    method guarantees; the test is supposed to be the docs for it
-3. **Abstraction** — should call internal _evict on overflow couples
+3. **Abstraction**: should call internal _evict on overflow couples
    the test to implementation; the user-visible contract is "oldest
    entry is evicted when capacity is exceeded"
-4. **Clarity** — ttl expires uses a real sleep; inject a clock to
+4. **Clarity**: ttl expires uses a real sleep; inject a clock to
    make the test fast, deterministic, and self-documenting about
    how ttl is measured
-5. **Coverage** — no test demonstrates getOrSet's cache-aside
+5. **Coverage**: no test demonstrates getOrSet's cache-aside
    contract (compute on miss, return cached on hit)
 
 ### Recommendations
@@ -260,7 +262,7 @@ Propose concrete merges, deletions, renames, or additions.
 
 | Test                                       | Subject             | Intent                              |
 |--------------------------------------------|---------------------|-------------------------------------|
-| test_balance                               | Account             | unclear — inspects private field    |
+| test_balance                               | Account             | unclear, inspects private field    |
 | deposit_and_withdraw                       | Account             | two actions, balance only at end    |
 | overdraft_throws                           | Account.withdraw    | rejection, no state check after     |
 | test_close                                 | Account.close       | closes but does not verify frozen   |
@@ -273,24 +275,24 @@ Propose concrete merges, deletions, renames, or additions.
   balance only; a reader cannot tell which action produced which
   effect, and a regression in deposit could be masked by withdraw
 - overdraft_throws: asserts the exception but does not verify that
-  the balance is unchanged afterwards — a silent corruption would
+  the balance is unchanged afterwards, because a silent corruption would
   still pass
 - test_close: calls close() but never attempts a follow-up action
   to prove the account actually rejects further operations
 
 ### Findings
 
-1. **State visibility** — test_balance bypasses the API by writing
+1. **State visibility**: test_balance bypasses the API by writing
    to _balance directly; the test proves nothing about deposit
-2. **Actions visible** — deposit_and_withdraw collapses two
+2. **Actions visible**: deposit_and_withdraw collapses two
    transitions into one assertion; split so each action's effect
    on balance is shown
-3. **Before/after** — overdraft_throws asserts the error but not
+3. **Before/after**: overdraft_throws asserts the error but not
    that balance is preserved; the invariant is the whole point
-4. **Setup uses API** — tests that need a funded account construct
+4. **Setup uses API**: tests that need a funded account construct
    it by field assignment instead of calling deposit(), bypassing
    invariants the real code relies on
-5. **Illegal transitions** — test_close does not verify that
+5. **Illegal transitions**: test_close does not verify that
    deposit/withdraw on a closed account are rejected and leave
    state untouched
 

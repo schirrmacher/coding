@@ -1,6 +1,6 @@
 ---
 name: reduce
-description: Deeply reduce complexity by identifying the abstract recipe underneath the code, the minimal data and state it actually needs, the right abstraction level for each step, and then challenging every step for necessity, overlap, and placement.
+description: Deeply reduce complexity by identifying the abstract recipe underneath the code, the minimal data and state it needs, the right abstraction level for each step, and then challenging every step for necessity, overlap, and placement.
 triggers:
   - phrase: "/reduce"
   - phrase: "reduce complexity"
@@ -9,11 +9,13 @@ triggers:
   - phrase: "challenge this code"
 ---
 
-# Reduce — Complexity Reduction Framework
+# Reduce
+
+Complexity reduction framework.
 
 ## Purpose
 
-Deeply think and reduce the complexity of the code specified by `$ARGUMENTS` (a file, snippet, or reference from context). This is not a cleanup pass — it questions whether each step, each piece of state, and each location is justified at all.
+Deeply think and reduce the complexity of the code specified by `$ARGUMENTS` (a file, snippet, or reference from context). This goes past a cleanup pass. It questions whether each step, each piece of state, and each location is justified at all.
 
 Related but distinct:
 - **`/improve-readability`** rearranges code for clarity without changing what it does.
@@ -22,9 +24,9 @@ Related but distinct:
 
 ## When to Use
 
-1. **Manual invocation** — user types `/reduce <file|code-target>`
-2. **Pre-refactor** — before a larger restructuring, to see what can be removed first
-3. **Proactive** — user says "reduce complexity", "minimize this", or "challenge this code"
+1. **Manual invocation**: user types `/reduce <file|code-target>`
+2. **Pre-refactor**: before a larger restructuring, to see what can be removed first
+3. **Proactive**: user says "reduce complexity", "minimize this", or "challenge this code"
 
 ## Workflow
 
@@ -37,7 +39,7 @@ Strip the code down to the underlying **core steps** in plain words. Ignore synt
 - What is the input?
 - What is the output?
 - What is the minimal sequence of operations connecting them?
-- Write the recipe as 3–7 bullet points. If it takes more, the code is doing more than one thing.
+- Write the recipe as 3-7 bullet points. If it takes more, the code is doing more than one thing.
 
 ### Step 2: Identify the Minimal Data, State, and Access
 
@@ -45,7 +47,7 @@ For each step in the recipe, list the **minimum** it needs:
 
 - Which fields of which inputs?
 - Which pieces of state must persist across steps?
-- Which external resources (DB, network, filesystem, globals) are actually touched?
+- Which external resources (DB, network, filesystem, globals) does it touch?
 
 Anything carried but unused is a candidate for removal. Anything passed through layers untouched is a candidate for relocation.
 
@@ -53,7 +55,7 @@ Anything carried but unused is a candidate for removal. Anything passed through 
 
 For each piece of data, state, or access, ask:
 
-- Is it handled at the level where its meaning lives, or one layer too high / too low?
+- Is it handled at the level where its meaning lives, or one layer too high or too low?
 - Does this module own the concept, or is it borrowing it from a neighbor?
 - Would the concept be clearer if defined where it is used, or where it originates?
 
@@ -86,15 +88,15 @@ Present the reductions as a short, ordered list. For each:
 - Which question it failed (necessity / minimal data / overlap / placement)
 - The concrete change
 
-Do **not** apply changes silently — propose them, then wait for the user to choose what to apply. A reduction that the user disagrees with is worse than no reduction at all.
+Do **not** apply changes silently. Propose them, then wait for the user to choose what to apply. A reduction the user disagrees with is worse than no reduction at all.
 
 ## Principles
 
-1. **Recipe first, code second** — never propose a change before the abstract recipe is on the table
-2. **Minimal data is load-bearing** — most overcomplication comes from passing more than the step needs
-3. **Wrong-level beats wrong-name** — a misplaced abstraction won't be fixed by renaming
-4. **Deletion is the strongest reduction** — prefer removing a step to simplifying it
-5. **Propose, don't apply** — the user owns the call on whether the reduction is worth it
+1. **Recipe first, code second.** Never propose a change before the abstract recipe is on the table.
+2. **Pass only what the step needs.** Most overcomplication comes from passing more than that.
+3. **Wrong-level beats wrong-name.** A misplaced abstraction won't be fixed by renaming.
+4. **Deletion is the strongest reduction.** Prefer removing a step to simplifying it.
+5. **Propose, don't apply.** The user owns the call on whether the reduction is worth it.
 
 ## Output Shape
 
@@ -113,11 +115,11 @@ Do **not** apply changes silently — propose them, then wait for the user to ch
 - <data/state> handled in <here> but conceptually belongs in <there> because <reason>
 
 ## Proposed reductions
-1. **<Step>** — fails <necessity|minimal-data|overlap|placement>. Change: <concrete>.
-2. **<Step>** — fails <…>. Change: <concrete>.
+1. **<Step>** fails <necessity|minimal-data|overlap|placement>. Change: <concrete>.
+2. **<Step>** fails <…>. Change: <concrete>.
 
 ## Recommendation
-<which 1–2 reductions to apply first and why>
+<which 1-2 reductions to apply first and why>
 ```
 
 ## Example
@@ -135,21 +137,21 @@ Do **not** apply changes silently — propose them, then wait for the user to ch
 5. Persist an order record
 
 ## Minimal data per step
-- Validate: item IDs and quantities — not prices, not customer
-- Total: item prices and quantities — not stock state
-- Charge: customer payment token and total — not items
+- Validate: item IDs and quantities, not prices, not customer
+- Total: item prices and quantities, not stock state
+- Charge: customer payment token and total, not items
 - Persist: item IDs, total, customer ID, payment receipt
 
 ## Misplacements
-- `taxRate` is read from cart-builder config but used only in `computeTotal` — it belongs in the pricing module
-- `validateStock` calls `inventoryService.reserve()` which both checks AND mutates — the mutation belongs in a separate step after charge succeeds, not during validation
+- `taxRate` is read from cart-builder config but used only in `computeTotal`. It belongs in the pricing module.
+- `validateStock` calls `inventoryService.reserve()`, which both checks AND mutates. The mutation belongs in a separate step after charge succeeds, not during validation.
 
 ## Proposed reductions
-1. **Step 2 (validate)** — fails *placement*. The reserve-on-validate behavior couples stock mutation to an early step; move reservation to a new step after step 4 so a failed charge doesn't orphan reservations.
-2. **Step 3 (total)** — fails *minimal data*. Currently receives the full cart object; pass only `items[]`. Removes the need for the function to know about the cart wrapper.
-3. **`logCheckoutAttempt` call inside step 2** — fails *necessity*. Already logged by the request middleware; delete the duplicate.
-4. **`formatLineItems` and `serializeForReceipt`** — fail *overlap*. Both walk the same items list and produce 80% the same fields; merge into one `presentLineItems(items, audience)` taking an audience flag.
+1. **Step 2 (validate)** fails *placement*. The reserve-on-validate behavior couples stock mutation to an early step. Move reservation to a new step after step 4 so a failed charge doesn't orphan reservations.
+2. **Step 3 (total)** fails *minimal data*. It currently receives the full cart object. Pass only `items[]`. That removes the need for the function to know about the cart wrapper.
+3. **`logCheckoutAttempt` call inside step 2** fails *necessity*. The request middleware already logs it. Delete the duplicate.
+4. **`formatLineItems` and `serializeForReceipt`** fail *overlap*. Both walk the same items list and produce 80% the same fields. Merge into one `presentLineItems(items, audience)` taking an audience flag.
 
 ## Recommendation
-Apply (1) first — it's the only one with a correctness implication (orphaned reservations on failed charges). Then (4), which removes the most code. (2) and (3) are small cleanups once the bigger shape settles.
+Apply (1) first, because it is the only one with a correctness implication (orphaned reservations on failed charges). Then (4), which removes the most code. (2) and (3) are small cleanups once the bigger shape settles.
 ````

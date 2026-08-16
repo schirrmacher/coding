@@ -8,17 +8,19 @@ triggers:
   - phrase: "create agentdocs structure"
 ---
 
-# Agentdocs — Convention Scaffolding
+# Agentdocs
+
+Convention setup for a project's docs.
 
 ## Purpose
 
-Scaffold an `agentdocs/` directory of topic-split convention files for a project, in the format used by `agentwerk`. Read the target codebase first; write rules that name real identifiers in it. The goal is documentation an agent can load file-by-file based on its task — not a single monolithic CLAUDE.md.
+Scaffold an `agentdocs/` directory of topic-split convention files for a project, in the format used by `agentwerk`. Read the target codebase first; write rules that name real identifiers in it. The goal is documentation an agent can load file-by-file based on its task, not a single monolithic CLAUDE.md.
 
 ## When to Use
 
-1. **Manual invocation** — user types `/agentdocs` (acts on cwd) or `/agentdocs <path>` (acts on a specific project root)
-2. **Setup** — user asks to "set up agentdocs", "scaffold conventions docs", or "split CLAUDE.md by topic"
-3. **Proactive** — a project has a CLAUDE.md but no topic-split convention files, and the user is about to add another large rules section
+1. **Manual invocation**: user types `/agentdocs` (acts on cwd) or `/agentdocs <path>` (acts on a specific project root)
+2. **Setup**: user asks to "set up agentdocs", "scaffold conventions docs", or "split CLAUDE.md by topic"
+3. **Proactive**: a project has a CLAUDE.md but no topic-split convention files, and the user is about to add another large rules section
 
 ## What It Produces
 
@@ -100,22 +102,13 @@ How every file under `agentdocs/` is written. This file is itself an example of 
 - Group related bullets under a one-line header ending in a colon.
 - Code fences are acceptable for commands and small code examples.
 
-## Punctuation
-
-**Colons, not em dashes.**
-
-- Use `:` where an em dash would otherwise appear.
-- Use commas or parentheses for short parenthetical asides.
-- `>` blockquotes are reserved for callouts at the top of a file.
-
 ## Voice
 
 **Direct and neutral. No marketing language. No unnecessary jargon.**
 
 - State the rule; justify only when the rule is not obvious on its own.
 - Prefer present tense and second person over passive voice.
-- Avoid adjectives that do not carry information ("powerful", "clean", "seamless").
-- Avoid borrowed metaphors ("kernel", "plane", "seam", "pipeline") unless they are the precise technical term.
+- `>` blockquotes are reserved for callouts at the top of a file.
 
 ## Emphasis
 
@@ -161,7 +154,7 @@ Write each file in turn, applying the rules in `this.md`. For every file:
 - Start with `# <Title>` (one word, no period) and one sentence stating its scope.
 - Use `##` plain headings; no numbering.
 - Each section: bold one-liner rule, then 3–5 imperative bullets.
-- Every named identifier must be greppable in the project — verify before writing.
+- Every named identifier must be greppable in the project. Verify before writing.
 - Cross-link rather than restate (e.g. `testing.md` links to `workflow.md` for commands).
 
 Per-file scope:
@@ -169,7 +162,7 @@ Per-file scope:
 - `project.md`: design principles. What the project is, what shapes its API surface, what it explicitly does **not** do. 4–6 sections.
 - `workflow.md`: commands the developer runs. Build, format, test, release, and any project-specific runners. Lift commands verbatim from the Makefile or package scripts.
 - `layout.md`: where code lives. One section per top-level source directory; one section for tests; one section for any internal-only modules.
-- `architecture.md`: invariants that shape how code fits together. The seams between modules and the rules that hold across them. Drop anything that just restates layout.
+- `architecture.md`: invariants that shape how code fits together. The boundaries between modules and the rules that hold across them. Drop anything that just restates layout.
 - `style.md`: naming and comment rules. Type/function/field naming, error and event variant conventions, doc-comment rules, README structure if there is one.
 - `testing.md`: how tests are organized and written. Test layers, naming, what is mocked vs. real, coverage shape. Links to `workflow.md` for the commands.
 
@@ -198,11 +191,11 @@ The project's conventions are split across the following files. Read the one mat
 
 ## Principles
 
-1. **Rule-first prose** — every section opens with a bold one-liner. Bullets justify or unpack it.
-2. **Code-grounded** — a rule that does not name an identifier in the target project is opinion, not architecture. Drop it.
-3. **One topic per file** — when two files would say the same thing, one of them links instead.
-4. **Imperative voice, no decoration** — no em dashes, no marketing adjectives, no borrowed metaphors.
-5. **Skim cost over completeness** — drop anything a careful reader of the code would already see.
+1. **Rule-first prose**: every section opens with a bold one-liner. Bullets justify or unpack it.
+2. **Code-grounded**: a rule that does not name an identifier in the target project is opinion, not architecture. Drop it.
+3. **One topic per file**: when two files would say the same thing, one of them links instead.
+4. **Imperative voice, no decoration**: no em dashes, no marketing adjectives, no borrowed metaphors.
+5. **Skim cost over completeness**: drop anything a careful reader of the code would already see.
 
 ## Example
 

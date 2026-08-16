@@ -8,17 +8,19 @@ triggers:
   - phrase: "commit changes"
 ---
 
-# Commit Name — Git Commit Generator
+# Commit Name
+
+Git commit generator.
 
 ## Purpose
 
-Generate a commit message from the conversation context and commit staged files. Produce a subject line and a minimal body that tells the reader **why**, not just **what**.
+Generate a commit message from the conversation context and commit staged files. Produce a subject line and a minimal body. The body gives the reader the **why**. The diff already shows the what.
 
 ## When to Use
 
-1. **Manual invocation** — user types `/commit-name` after staging changes
-2. **Post-task** — user asks to "commit changes" or "write a commit message"
-3. **Proactive** — user says "commit this" or "save my work"
+1. **Manual invocation**: user types `/commit-name` after staging changes
+2. **Post-task**: user asks to "commit changes" or "write a commit message"
+3. **Proactive**: user says "commit this" or "save my work"
 
 ## What It Produces
 
@@ -32,21 +34,21 @@ A git commit with the following message format:
 - <change 3>
 ```
 
-- **Subject** — one short line, max 50 characters, lowercase, imperative mood, no period
-- **Body** — max 5 bullets, each a **single line** ≤80 characters, only what is not obvious from the diff. No wrapping, no sub-bullets, no multi-clause sentences — one crisp change per bullet. If a bullet needs a second line, it's doing too much: split it or cut it.
+- **Subject**: one short line, max 50 characters, lowercase, imperative mood, no period
+- **Body**: max 5 bullets, each a **single line** ≤80 characters, only what is not obvious from the diff. No wrapping, no sub-bullets, no multi-clause sentences. One crisp change per bullet. If a bullet needs a second line, it is doing too much. Split it or cut it.
 
 ## Workflow
 
 ### Step 1: Read Context
 
 - Review the conversation to identify what was done and why
-- Check `git diff --staged` to see exactly what will be committed
+- Check `git diff --staged` to see what will be committed
 
 ### Step 2: Compose Message
 
 - Write a subject line that describes the outcome
 - Write up to 3 body bullets summarizing non-obvious changes
-- Keep it brief — if the diff speaks for itself, fewer bullets
+- Keep it brief. If the diff speaks for itself, use fewer bullets
 
 ### Step 3: Commit
 
@@ -55,11 +57,11 @@ A git commit with the following message format:
 
 ## Principles
 
-1. **Imperative mood** — "add feature", not "added feature"
-2. **Outcome over activity** — describe what changed, not what you did
-3. **Brevity** — only include what the diff does not already say; each bullet stays one short line, max 5 total
-4. **No decoration** — no scope prefixes, no emojis, no trailing period
-5. **No co-author** — do not add coding agent attribution
+1. **Imperative mood**: "add feature", not "added feature"
+2. **Outcome over activity**: describe what changed, not what you did
+3. **Brevity**: only include what the diff does not already say. Each bullet stays one short line, max 5 total
+4. **No decoration**: no scope prefixes, no emojis, no trailing period
+5. **No co-author**: do not add coding agent attribution
 
 ## Examples
 

@@ -12,6 +12,10 @@ OUTPUT_STYLE_NAMES := $(notdir $(wildcard $(CURDIR)/output-styles/*.md))
 # Symlinking a style only offers it; this key is what selects it in every project
 CLAUDE_SETTINGS := $(HOME)/.claude/settings.json
 DEFAULT_OUTPUT_STYLE := Plain
+DEFAULT_STYLE_FILE := plain.md
+
+# opencode has no output styles, so the same file is loaded via its instructions key
+OPENCODE_CONFIG := $(HOME)/.config/opencode/opencode.jsonc
 
 GITCONFIG_PATH := $(CURDIR)/git/gitconfig
 NANORC_PATH := $(CURDIR)/nano/nanorc
@@ -44,6 +48,22 @@ all:
 		echo "outputStyle=$(DEFAULT_OUTPUT_STYLE) → $(CLAUDE_SETTINGS)"; \
 	else \
 		echo "jq not found; set \"outputStyle\": \"$(DEFAULT_OUTPUT_STYLE)\" in $(CLAUDE_SETTINGS) by hand"; \
+	fi
+
+# Same rules for opencode, which reads `instructions` files but has no output styles.
+# Skipped when the config has comments, since jq would drop them.
+	@style_path="$(CURDIR)/output-styles/$(DEFAULT_STYLE_FILE)"; \
+	if ! command -v jq >/dev/null 2>&1; then \
+		echo "jq not found; add $$style_path to \"instructions\" in $(OPENCODE_CONFIG) by hand"; \
+	elif [ -s "$(OPENCODE_CONFIG)" ] && ! jq empty "$(OPENCODE_CONFIG)" >/dev/null 2>&1; then \
+		echo "$(OPENCODE_CONFIG) is not plain JSON; add $$style_path to \"instructions\" by hand"; \
+	else \
+		mkdir -p "$$(dirname "$(OPENCODE_CONFIG)")"; \
+		[ -s "$(OPENCODE_CONFIG)" ] || echo '{}' > "$(OPENCODE_CONFIG)"; \
+		jq --arg p "$$style_path" '.instructions = (((.instructions // []) - [$$p]) + [$$p])' \
+			"$(OPENCODE_CONFIG)" > "$(OPENCODE_CONFIG).tmp" \
+			&& mv "$(OPENCODE_CONFIG).tmp" "$(OPENCODE_CONFIG)"; \
+		echo "instructions += $(DEFAULT_STYLE_FILE) → $(OPENCODE_CONFIG)"; \
 	fi
 
 # Git: global gitignore, plus include our shared gitconfig
