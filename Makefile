@@ -1,6 +1,8 @@
 CLAUDE_SKILLS_DIR := $(HOME)/.claude/skills
 OPENCODE_SKILLS_DIR := $(HOME)/.config/opencode/skills
-SKILL_DESTS := $(CLAUDE_SKILLS_DIR) $(OPENCODE_SKILLS_DIR)
+# Codex reads ~/.agents/skills as well as ~/.codex/skills; .agents is the shared root
+AGENTS_SKILLS_DIR := $(HOME)/.agents/skills
+SKILL_DESTS := $(CLAUDE_SKILLS_DIR) $(OPENCODE_SKILLS_DIR) $(AGENTS_SKILLS_DIR)
 
 REPO_SKILLS := $(shell find $(CURDIR)/skills -mindepth 1 -maxdepth 1 -type d)
 SKILL_NAMES := $(notdir $(REPO_SKILLS))
