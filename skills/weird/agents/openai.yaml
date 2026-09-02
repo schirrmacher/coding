@@ -1,0 +1,4 @@
+interface:
+  display_name: "Weird"
+  short_description: "Rewrite weird wording for clarity"
+  default_prompt: "Use $weird to rewrite this wording more clearly."
