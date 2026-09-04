@@ -8,7 +8,7 @@ make
 
 Symlinks skills, output styles, and gitignore, includes gitconfig. `user.email` stays local.
 Skills land in `~/.claude/skills`, `~/.config/opencode/skills`, and `~/.agents/skills` (Codex).
-opencode has no output styles, so `make` adds the same style file to its `instructions` list.
+opencode has no output styles, so `make` adds the same style file to its `instructions` list and allows all skills by default.
 
 ## Output Styles
 
