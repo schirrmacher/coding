@@ -48,6 +48,7 @@ A git commit with the following message format:
 
 - Write a subject line that describes the outcome
 - Write up to 3 body bullets summarizing non-obvious changes
+- Rewrite code-shaped task wording as natural language in both the subject and body
 - Keep it brief. If the diff speaks for itself, use fewer bullets
 
 ### Step 3: Commit
@@ -61,7 +62,8 @@ A git commit with the following message format:
 2. **Outcome over activity**: describe what changed, not what you did
 3. **Brevity**: only include what the diff does not already say. Each bullet stays one short line, max 5 total
 4. **No decoration**: no scope prefixes, no emojis, no trailing period
-5. **No co-author**: do not add coding agent attribution
+5. **Natural language**: when the meaning stays clear, remove code notation copied from the task or diff. Omit CLI prefixes such as `--` and describe the option as a flag
+6. **No co-author**: do not add coding agent attribution
 
 ## Examples
 
@@ -85,4 +87,12 @@ fix race condition in cache invalidation
 
 - guard concurrent writes with mutex
 - add staleness check before serve
+```
+
+**Input**: User added the `--instruction` research direction flag
+
+**Output**:
+
+```
+add instruction research direction flag
 ```
