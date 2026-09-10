@@ -99,5 +99,19 @@ If creation fails after a possibly successful network request, query again befor
 retrying. If a chain stops partway through, leave successful requests intact and
 report exactly which parts remain.
 
-Return every request URL in chain order with its `Part X of N` position and target
-branch.
+Summarize the complete submitted change in one crisp sentence. Return that sentence
+followed by every request in chain order twice:
+
+1. A Markdown list of clickable titles, including each request's `Part X of N`
+   position and target branch
+2. A `For Slack:` section containing a fenced `text` block that can be copied
+   directly into Slack. Repeat the summary sentence as its first line, followed by
+   a blank line and the request links.
+
+Format each line in the Slack block as:
+
+```text
+<one-sentence summary>
+
+• <URL|Part X of N: title> → `target-branch`
+```
