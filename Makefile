@@ -1,31 +1,49 @@
-CLAUDE_SKILLS_DIR := $(HOME)/.claude/skills
-OPENCODE_SKILLS_DIR := $(HOME)/.config/opencode/skills
-OPENCODE_COMMANDS_DIR := $(HOME)/.config/opencode/commands
-OPENCODE_COMMAND_MARKER := <!-- Installed as an OpenCode command by the skills Makefile. -->
-# Codex reads ~/.agents/skills as well as ~/.codex/skills; .agents is the shared root
-AGENTS_SKILLS_DIR := $(HOME)/.agents/skills
-SHARED_SKILL_DIRS := $(CLAUDE_SKILLS_DIR) $(AGENTS_SKILLS_DIR)
+.DEFAULT_GOAL := all
 
 REPO_SKILLS := $(shell find $(CURDIR)/skills -mindepth 1 -maxdepth 1 -type d)
 SKILL_NAMES := $(notdir $(REPO_SKILLS))
 
-# Output styles are Claude Code only; opencode has no equivalent
+CLAUDE_SKILLS_DIR := $(HOME)/.claude/skills
+# .agents is shared by Codex and OpenCode; Claude keeps its own links.
+AGENTS_SKILLS_DIR := $(HOME)/.agents/skills
+SHARED_SKILL_DIRS := $(CLAUDE_SKILLS_DIR) $(AGENTS_SKILLS_DIR)
+
+OPENCODE_SKILLS_DIR := $(HOME)/.config/opencode/skills
+OPENCODE_COMMANDS_DIR := $(HOME)/.config/opencode/commands
+OPENCODE_COMMAND_MARKER := <!-- Installed as an OpenCode command by the skills Makefile. -->
+OPENCODE_CONFIG := $(HOME)/.config/opencode/opencode.jsonc
+
 OUTPUT_STYLES_DIR := $(HOME)/.claude/output-styles
 OUTPUT_STYLE_NAMES := $(notdir $(wildcard $(CURDIR)/output-styles/*.md))
-
-# Symlinking a style only offers it; this key is what selects it in every project
 CLAUDE_SETTINGS := $(HOME)/.claude/settings.json
 DEFAULT_OUTPUT_STYLE := Plain
 DEFAULT_STYLE_FILE := plain.md
 
-# opencode has no output styles, so the same file is loaded via its instructions key
-OPENCODE_CONFIG := $(HOME)/.config/opencode/opencode.jsonc
-
 GITCONFIG_PATH := $(CURDIR)/git/gitconfig
 NANORC_PATH := $(CURDIR)/nano/nanorc
+SANDBOX_DIR := $(CURDIR)/sandbox
 
-all:
-# Symlink every skill into each tool's skills dir
+.PHONY: all install install-skills install-opencode-commands \
+        install-claude-style install-opencode-style install-git install-nano \
+        install-shell install-sandbox
+
+# Installation touches shared user settings; keep the listed order under make -j.
+.NOTPARALLEL: all install
+
+all: install-skills install-opencode-commands \
+     install-claude-style install-opencode-style install-git install-nano \
+     install-shell install-sandbox
+	@echo ""
+	@if [ -n "$$ZSH_VERSION" ] || [ "$$SHELL" = "/bin/zsh" ]; then \
+		echo "Run: source ~/.zshrc"; \
+	elif [ -n "$$BASH_VERSION" ] || [ "$$SHELL" = "/bin/bash" ]; then \
+		echo "Run: source ~/.bashrc"; \
+	fi
+
+install: all
+	@echo "install complete (aliases and wrappers apply to new shells)"
+
+install-skills:
 	@for skill_dir in $(SHARED_SKILL_DIRS); do \
 		mkdir -p "$$skill_dir"; \
 		for name in $(SKILL_NAMES); do \
@@ -44,6 +62,7 @@ all:
 	done
 
 # Command copies make skills visible in OpenCode's default slash autocomplete.
+install-opencode-commands:
 	@mkdir -p "$(OPENCODE_COMMANDS_DIR)"
 	@set -e; for name in $(SKILL_NAMES); do \
 		skill_file="$(CURDIR)/skills/$$name/SKILL.md"; \
@@ -59,7 +78,7 @@ all:
 		echo "$$name → $$command_file"; \
 	done
 
-# Symlink every output style into Claude Code's output-styles dir
+install-claude-style:
 	@mkdir -p "$(OUTPUT_STYLES_DIR)"
 	@for name in $(OUTPUT_STYLE_NAMES); do \
 		rm -rf "$(OUTPUT_STYLES_DIR)/$$name"; \
@@ -67,7 +86,7 @@ all:
 		echo "$$name → $(OUTPUT_STYLES_DIR)/$$name"; \
 	done
 
-# Select the default style globally; /output-style only ever sets it per project
+# /output-style selects per project; the settings key selects globally.
 	@if command -v jq >/dev/null 2>&1; then \
 		[ -s "$(CLAUDE_SETTINGS)" ] || echo '{}' > "$(CLAUDE_SETTINGS)"; \
 		jq --arg style "$(DEFAULT_OUTPUT_STYLE)" '.outputStyle = $$style' \
@@ -78,8 +97,8 @@ all:
 		echo "jq not found; set \"outputStyle\": \"$(DEFAULT_OUTPUT_STYLE)\" in $(CLAUDE_SETTINGS) by hand"; \
 	fi
 
-# Load the default style as an instruction because OpenCode has no output styles.
-# Leave JSONC with comments untouched because jq would discard them.
+# OpenCode uses instructions for styles. Leave JSONC untouched to retain comments.
+install-opencode-style:
 	@opencode_style="$(CURDIR)/output-styles/$(DEFAULT_STYLE_FILE)"; \
 	if ! command -v jq >/dev/null 2>&1; then \
 		echo "jq not found; add $$opencode_style to \"instructions\" in $(OPENCODE_CONFIG) by hand"; \
@@ -94,7 +113,7 @@ all:
 		echo "instructions += $(DEFAULT_STYLE_FILE) → $(OPENCODE_CONFIG)"; \
 	fi
 
-# Git: global gitignore, plus include our shared gitconfig
+install-git:
 	@rm -f "$(HOME)/.gitignore"
 	@ln -s "$(CURDIR)/git/gitignore" "$(HOME)/.gitignore"
 	@echo ".gitignore → $(HOME)/.gitignore"
@@ -102,12 +121,13 @@ all:
 		|| git config --global --add include.path "$(GITCONFIG_PATH)"
 	@echo ".gitconfig includes $(GITCONFIG_PATH)"
 
-# Nano: 80-column wrap
+install-nano:
 	@rm -f "$(HOME)/.nanorc"
 	@ln -s "$(NANORC_PATH)" "$(HOME)/.nanorc"
 	@echo ".nanorc → $(HOME)/.nanorc"
 
-# Shell: alias g=git and keep OpenCode from scanning the duplicate Claude links
+# Keep OpenCode from scanning duplicate Claude links.
+install-shell:
 	@for shell_rc in $(HOME)/.bashrc $(HOME)/.zshrc; do \
 		[ -f "$$shell_rc" ] || continue; \
 		grep -qF "alias g=git" "$$shell_rc" || echo "alias g=git" >> "$$shell_rc"; \
@@ -117,9 +137,5 @@ all:
 		echo "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1 → $$shell_rc"; \
 	done
 
-	@echo ""
-	@if [ -n "$$ZSH_VERSION" ] || [ "$$SHELL" = "/bin/zsh" ]; then \
-		echo "Run: source ~/.zshrc"; \
-	elif [ -n "$$BASH_VERSION" ] || [ "$$SHELL" = "/bin/bash" ]; then \
-		echo "Run: source ~/.bashrc"; \
-	fi
+install-sandbox:
+	@$(SANDBOX_DIR)/bin/sandbox_wrappers

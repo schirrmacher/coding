@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Remove sandbox host setup. Usage: sudo host/down
+
+set -euo pipefail
+
+main() {
+	if [[ $EUID -ne 0 ]]; then
+		echo "sandbox down must run as root: sudo $0" >&2
+		exit 1
+	fi
+
+	systemctl disable --now sandbox-proxy.service 2>/dev/null || true
+	rm -f /etc/systemd/system/sandbox-proxy.service
+	rm -rf /usr/local/lib/sandbox
+	systemctl daemon-reload 2>/dev/null || true
+
+	nft list table ip sandbox >/dev/null 2>&1 && nft delete table ip sandbox
+
+	# Remove veths before namespaces to avoid dangling peers.
+	for host_veth in $(ip -o link show | awk -F ': ' '$2 ~ /^sbh[0-9]+(@.*)?$/ {sub(/@.*/, "", $2); print $2}'); do
+		ip link del "$host_veth"
+	done
+
+	for namespace in $(ip netns list | awk '$1 ~ /^sandbox-/ {print $1}'); do
+		ip netns del "$namespace"
+	done
+	rm -rf /etc/netns/sandbox-*
+
+	for profile in /etc/apparmor.d/sandbox-*; do
+		[[ -e $profile ]] || continue
+		apparmor_parser -R "$profile" 2>/dev/null || true
+		rm -f "$profile"
+	done
+
+	echo "sandbox removed"
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	main "$@"
+fi

@@ -1,0 +1,153 @@
+default = "orca"
+
+[net]
+subnet = "10.77.0.0/24"
+
+[proxy]
+sni_port = 3128
+dns_port = 53
+
+[[apps]]
+name = "orca"
+cmd = [
+    "${HOME}/Applications/orca-linux.AppImage",
+]
+gui = true
+dir.write = [
+    "${HOME}/orca",
+    "${HOME}/.orca",
+    "${HOME}/.config/orca",
+    "${HOME}/.cache/orca",
+]
+endpoints = [
+    "cortecs.ai",
+    "pypi.org",
+    "files.pythonhosted.org",
+]
+
+[[apps]]
+name = "claude"
+endpoints = [
+    "api.anthropic.com",
+    "claude.ai",
+    "claude.com",
+    "platform.claude.com",
+]
+
+[[apps]]
+name = "codex"
+cmd = [
+    "/usr/bin/env",
+    "GH_CONFIG_DIR=${HOME}/.local/share/sandbox/gh",
+    "GH_NO_UPDATE_NOTIFIER=1",
+    "${HOME}/.local/share/codex/current/bin/codex",
+]
+
+codex_home = "${HOME}/.codex"
+dir.read = ["${HOME}/.agents", "${HOME}/.orca/agent-hooks", "${HOME}/.local/share/codex"]
+dir.state = ["${HOME}/.local/share/sandbox/gh"]
+endpoints = [
+    "github.com",
+    "api.github.com",
+    "api.openai.com",
+    "chatgpt.com",
+    "auth.openai.com",
+]
+
+[[apps]]
+name = "vscode"
+wrapper_name = "code"
+cmd = [
+    "/usr/bin/env",
+    "VSCODE_PORTABLE=${HOME}/.local/share/sandbox/vscode",
+    "/usr/bin/code",
+    "--wait",
+    "--no-sandbox",
+    "--user-data-dir",
+    "${HOME}/.local/share/sandbox/vscode/user-data",
+    "--extensions-dir",
+    "${HOME}/.local/share/sandbox/vscode/extensions",
+]
+gui = true
+launchers = [
+    "com.microsoft.VSCode.desktop",
+    "com.microsoft.VSCode.UrlHandler.desktop",
+]
+dir.write = ["${HOME}/.local/share/sandbox/vscode"]
+dir.read = [
+    "/usr/share/code",
+]
+endpoints = [
+    "update.code.visualstudio.com",
+    "marketplace.visualstudio.com",
+    "vscode.download.prss.microsoft.com",
+]
+
+[[apps]]
+name = "opencode"
+cmd = [
+    "/usr/bin/env",
+    "GH_CONFIG_DIR=${HOME}/.local/share/sandbox/gh",
+    "GH_NO_UPDATE_NOTIFIER=1",
+    "OPENCODE_DISABLE_AUTOUPDATE=1",
+    "OPENCODE_DISABLE_MODELS_FETCH=1",
+    "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1",
+    "${HOME}/.opencode/bin/opencode",
+]
+dir.write = ["${HOME}/.config/opencode", "${HOME}/.local/share/opencode", "${HOME}/.local/state/opencode", "${HOME}/.cache/opencode"]
+dir.read = ["${HOME}/.opencode", "${HOME}/.agents"]
+dir.state = ["${HOME}/.local/share/sandbox/gh"]
+endpoints = [
+    "github.com",
+    "api.github.com",
+    "cortecs.ai",
+    "api.cortecs.ai",
+    "api.exa.ai",
+]
+
+[[apps]]
+name = "gh"
+cmd = [
+    "/usr/bin/env",
+    "GH_CONFIG_DIR=${HOME}/.local/share/sandbox/gh",
+    "GH_NO_UPDATE_NOTIFIER=1",
+    "/usr/bin/gh",
+]
+dir.state = ["${HOME}/.local/share/sandbox/gh"]
+endpoints = ["github.com", "api.github.com"]
+
+[[apps]]
+name = "cargo"
+cmd = [
+    "/usr/bin/env",
+    "CARGO_HOME=${HOME}/.local/share/sandbox/cargo",
+    "RUSTUP_HOME=${HOME}/.rustup",
+    "RUSTUP_AUTO_INSTALL=0",
+    "CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse",
+    "PATH=${HOME}/.cargo/bin:${HOME}/.local/share/sandbox/cargo/bin:/usr/local/bin:/usr/bin:/bin",
+    "${HOME}/.cargo/bin/cargo",
+]
+
+dir.state = ["${HOME}/.local/share/sandbox/cargo"]
+dir.read = ["${HOME}/.cargo/bin", "${HOME}/.rustup"]
+endpoints = ["index.crates.io", "static.crates.io", "crates.io"]
+
+[[apps]]
+name = "uv"
+cmd = [
+    "/usr/bin/env",
+    "UV_CACHE_DIR=${HOME}/.local/share/sandbox/uv/cache",
+    "UV_PYTHON_INSTALL_DIR=${HOME}/.local/share/sandbox/uv/python",
+    "UV_PYTHON_BIN_DIR=${HOME}/.local/share/sandbox/uv/python-bin",
+    "UV_TOOL_DIR=${HOME}/.local/share/sandbox/uv/tools",
+    "UV_TOOL_BIN_DIR=${HOME}/.local/share/sandbox/uv/bin",
+    "XDG_CONFIG_HOME=${HOME}/.local/share/sandbox/uv/config",
+    "XDG_DATA_HOME=${HOME}/.local/share/sandbox/uv/data",
+    "UV_NO_MODIFY_PATH=1",
+    "PATH=${HOME}/.local/share/sandbox/runtimes/uv:${HOME}/.local/share/sandbox/uv/bin:${HOME}/.local/share/sandbox/uv/python-bin:/usr/local/bin:/usr/bin:/bin",
+    "${HOME}/.local/share/sandbox/runtimes/uv/uv",
+]
+
+dir.state = ["${HOME}/.local/share/sandbox/uv"]
+dir.read = ["${HOME}/.local/share/sandbox/runtimes/uv"]
+endpoints = ["pypi.org", "files.pythonhosted.org", "github.com", "release-assets.githubusercontent.com"]
