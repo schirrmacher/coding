@@ -1,0 +1,82 @@
+# Per-app profile: setup substitutes the app and writable directories.
+# Secret denies apply to every child through inherited execution.
+
+#include <tunables/global>
+
+profile sandbox-@SANDBOX_APP@ flags=(attach_disconnected,mediate_deleted) {
+  #include <abstractions/base>
+  # setpriv --init-groups needs NSS under this profile.
+  #include <abstractions/nameservice>
+
+  # Allow bwrap user namespaces on kernels with AppArmor restrictions.
+  userns,
+
+  # setpriv enters as root and drops to the caller before bwrap.
+  capability setuid,
+  capability setgid,
+
+  # Children inherit this profile; explicit secret denies still win.
+  /** ix,
+
+  # Destination filtering belongs to the namespace firewall and SNI proxy.
+  network,
+
+  # bwrap needs mappings, mounts, and capabilities inside its user namespace.
+  # The kernel still enforces host capability and mount boundaries.
+  / r,
+  @{PROC}/sys/kernel/overflow{uid,gid} r,
+  @{PROC}/version r,
+  owner @{PROC}/@{pid}/{uid,gid}_map rw,
+  owner @{PROC}/@{pid}/setgroups rw,
+  owner @{PROC}/@{pid}/fd/ r,
+  owner @{PROC}/@{pid}/fd/** r,
+  owner @{PROC}/@{pid}/{cmdline,mountinfo,stat} r,
+  owner @{PROC}/@{pid}/attr/current r,
+  capability sys_admin,
+  # Codex's nested bwrap configures loopback in its own network namespace.
+  capability net_admin,
+  capability sys_ptrace,
+  capability setpcap,
+  capability mknod,
+  mount,
+  remount,
+  umount,
+  pivot_root,
+  capability sys_chroot,
+  # bwrap creates these devices in its staged tmpfs, not host devtmpfs.
+  /{,newroot/}dev/** rw,
+
+  deny @{HOME}/.ssh/          r,
+  deny @{HOME}/.ssh/**        rwklmx,
+  deny @{HOME}/.gnupg/        r,
+  deny @{HOME}/.gnupg/**      rwklmx,
+  deny @{HOME}/.aws/          r,
+  deny @{HOME}/.aws/**        rwklmx,
+  deny @{HOME}/.kube/         r,
+  deny @{HOME}/.kube/**       rwklmx,
+  deny @{HOME}/.mozilla/      r,
+  deny @{HOME}/.mozilla/**    rwklmx,
+  deny @{HOME}/.config/google-chrome/   r,
+  deny @{HOME}/.config/google-chrome/** rwklmx,
+  deny @{HOME}/.config/chromium/        r,
+  deny @{HOME}/.config/chromium/**      rwklmx,
+  deny @{HOME}/.netrc                rwklmx,
+  deny @{HOME}/.git-credentials      rwklmx,
+  deny @{HOME}/.config/gh/hosts.yml  rwklmx,
+  deny @{HOME}/.claude/.credentials.json rwklmx,
+  deny @{HOME}/.password-store/      r,
+  deny @{HOME}/.password-store/**    rwklmx,
+  deny @{HOME}/.local/share/keyrings/     r,
+  deny @{HOME}/.local/share/keyrings/**   rwklmx,
+  # Never touch the real host resolver or netns plumbing.
+  deny /etc/netns/**        rwklmx,
+
+@DIRECTORY_RULES@
+@GUI_RULES@
+
+  # Nested bwrap creates temporary mountpoints before switching to its new root.
+  /{,newroot/}tmp/        r,
+  /{,newroot/}tmp/**      rwklmix,
+  /{,newroot/}var/tmp/    r,
+  /{,newroot/}var/tmp/**  rwklmix,
+}

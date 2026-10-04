@@ -1,0 +1,269 @@
+#!/usr/bin/env bash
+# Generate managed PATH wrappers and desktop entries. See ../README.md.
+
+set -euo pipefail
+
+SANDBOX_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+CONFIG="$SANDBOX_ROOT/sandbox.toml"
+source "$SANDBOX_ROOT/lib/query_config.sh"
+LAUNCHER="$SANDBOX_ROOT/bin/sandbox"
+BIN_DIR="$HOME/.local/bin"
+DESKTOP_DIR="$HOME/.local/share/applications"
+MARKER="sandbox-managed"
+BACKUP_DIR="$HOME/.local/share/sandbox/original-launchers"
+DESKTOP_BACKUP_DIR="$HOME/.local/share/sandbox/original-desktop-entries"
+SYSTEM_DESKTOP_DIR=/usr/share/applications
+
+main() {
+	read_config || exit 1
+	[[ -f $CONFIG ]] || {
+		echo "config not found: $CONFIG" >&2
+		exit 1
+	}
+	command -v jq >/dev/null || {
+		echo "jq is required to parse $CONFIG" >&2
+		exit 1
+	}
+	validate_launcher_config || exit 1
+
+	prepare_installation
+	generate_launchers
+	remove_stale_launchers
+	install_host_integration
+}
+
+prepare_installation() {
+	if config_query -e --arg executable "$HOME/.local/share/sandbox/runtimes/uv/uv" \
+		'any(.apps[]; .name == "uv" and .cmd[-1] == $executable)' >/dev/null; then
+		python3 "$SANDBOX_ROOT/lib/prepare_uv.py"
+	fi
+	while IFS= read -r directory; do
+		mkdir -p -- "$directory"
+	done < <(config_query -r '.apps[].dir.state // [] | .[]')
+	if config_query -e --arg executable "$HOME/.local/share/codex/current/bin/codex" \
+		'any(.apps[]; .name == "codex" and .cmd[-1] == $executable)' >/dev/null; then
+		python3 "$SANDBOX_ROOT/lib/prepare_codex.py"
+	fi
+
+	mkdir -p "$BIN_DIR" "$DESKTOP_DIR"
+}
+
+generate_launchers() {
+	mapfile -t CMD_APPS < <(config_query -r '.apps[] | select(.cmd != null) | .name')
+	mapfile -t GUI_APPS < <(config_query -r '.apps[] | select(.cmd != null and .gui == true) | .name')
+
+	echo "==> sandbox wrappers ($CONFIG)"
+	for app in "${CMD_APPS[@]}"; do
+		[[ $app != vscode ]] || python3 "$SANDBOX_ROOT/lib/prepare_vscode.py"
+		write_wrapper "$app"
+	done
+	for app in "${GUI_APPS[@]}"; do
+		write_desktop_entry "$app"
+	done
+}
+
+remove_stale_launchers() {
+	mapfile -t MANAGED_FILES < <(config_query -r '.apps[] | select(.cmd != null) | .wrapper_name // .name')
+	remove_stale "$BIN_DIR" ''
+	mapfile -t MANAGED_FILES < <(config_query -r '.apps[] | select(.cmd != null and .gui == true)
+		| if .launchers == null then .name + "-sandboxed.desktop" else .launchers[] end')
+	remove_stale "$DESKTOP_DIR" '.desktop'
+}
+
+install_host_integration() {
+	# sudo secure_path excludes ~/.local/bin; install the global launcher link.
+	SUDO_FRONT=()
+	[[ $EUID -eq 0 ]] || SUDO_FRONT=(sudo)
+	if [[ -L /usr/local/bin/sandbox && $(realpath /usr/local/bin/sandbox) == "$LAUNCHER" ]]; then
+		echo "  /usr/local/bin/sandbox (already installed)"
+	elif "${SUDO_FRONT[@]}" ln -sfn "$LAUNCHER" /usr/local/bin/sandbox; then
+		echo "  /usr/local/bin/sandbox"
+	else
+		echo "  could not create /usr/local/bin/sandbox; run by hand:" >&2
+		echo "    sudo ln -sfn $LAUNCHER /usr/local/bin/sandbox" >&2
+	fi
+
+	if command -v update-desktop-database >/dev/null; then
+		update-desktop-database "$DESKTOP_DIR" 2>/dev/null || true
+	fi
+}
+
+write_wrapper() {
+	local app=$1
+	local wrapper_name
+	wrapper_name=$(config_query -r --arg app "$app" 'first(.apps[] | select(.name == $app)) | .wrapper_name // .name')
+	[[ $wrapper_name =~ ^[a-z][a-z0-9-]*$ ]] || return 1
+	local -a command=()
+	mapfile -t command < <(app_cmd "$app")
+	local path="$BIN_DIR/$wrapper_name"
+	local executable=${command[0]}
+	if [[ $app =~ ^(uv|codex|opencode|gh)$ && ${command[0]} == /usr/bin/env ]]; then
+		executable=${command[-1]}
+	fi
+	preserve_launcher "$path" "$executable" || return 1
+	install_from_stdin "$path" executable <<EOF
+#!/usr/bin/env bash
+# $MARKER wrapper for app "$app" — regenerate with make install
+exec sudo -n $(quoted_cmd "$LAUNCHER" --app "$app") $(quoted_cmd "${command[@]}")"\$@"
+EOF
+	echo "  $path"
+}
+
+write_desktop_entry() {
+	local app=$1
+	local desktop_file
+	local -a launchers=()
+	mapfile -t launchers < <(config_query -r --arg app "$app" \
+		'first(.apps[] | select(.name == $app)).launchers // [] | .[]')
+	if [[ ${#launchers[@]} -gt 0 ]]; then
+		for desktop_file in "${launchers[@]}"; do
+			write_desktop_override "$app" "$desktop_file" || return 1
+		done
+		return 0
+	fi
+
+	local source_entry name icon
+	local -a command=()
+	mapfile -t command < <(app_cmd "$app")
+	local path="$DESKTOP_DIR/$app-sandboxed.desktop"
+	source_entry=$(source_desktop_entry "${command[0]}")
+	name=$(desktop_field "$source_entry" Name)
+	icon=$(desktop_field "$source_entry" Icon)
+	name=${name:-${app^}}
+	icon=${icon:-application-x-executable}
+	install_from_stdin "$path" plain <<EOF
+# $MARKER desktop entry for app "$app" — regenerate with make install
+[Desktop Entry]
+Name=$name (sandboxed)
+Exec=sudo $(desktop_cmd "$LAUNCHER" --app "$app" "${command[@]}")%U
+Terminal=false
+Type=Application
+Icon=$icon
+Categories=Utility;
+EOF
+	echo "  $path"
+}
+
+write_desktop_override() {
+	local app=$1 desktop_file=$2
+	[[ $desktop_file =~ ^[A-Za-z0-9][A-Za-z0-9_.-]*\.desktop$ ]] || return 1
+	local source_entry="$SYSTEM_DESKTOP_DIR/$desktop_file"
+	local path="$DESKTOP_DIR/$desktop_file" rendered
+	local -a command=()
+	mapfile -t command < <(app_cmd "$app")
+	# Preserve file, URI, and action arguments from the installed desktop template.
+	rendered=$(python3 "$SANDBOX_ROOT/lib/render_desktop.py" "$source_entry" \
+		"$(desktop_cmd sudo -n "$LAUNCHER" --app "$app" "${command[@]}")") || return 1
+	preserve_desktop_entry "$path" || return 1
+	install_from_stdin "$path" plain <<EOF
+# $MARKER desktop entry for app "$app" — regenerate with make install
+$rendered
+EOF
+	echo "  $path"
+}
+
+preserve_desktop_entry() {
+	local path=$1 backup="$DESKTOP_BACKUP_DIR/${1##*/}"
+	[[ -e $path || -L $path ]] || return 0
+	if [[ ! -L $path ]] && grep -q "$MARKER desktop entry for app" "$path"; then
+		return 0
+	fi
+	if [[ -e $backup || -L $backup ]]; then
+		cmp -s "$path" "$backup" || {
+			echo "conflicting desktop entry backup: $backup" >&2
+			return 1
+		}
+		return 0
+	fi
+	mkdir -p "$DESKTOP_BACKUP_DIR"
+	cp -P -- "$path" "$backup"
+}
+
+remove_stale() {
+	local directory=$1 suffix=$2
+	local file filename managed_file
+	for file in "$directory"/*"$suffix"; do
+		[[ -f $file ]] || continue
+		grep -q "$MARKER" "$file" 2>/dev/null || continue
+		filename=$(basename "$file")
+		for managed_file in "${MANAGED_FILES[@]}"; do
+			[[ $filename == "$managed_file" ]] && continue 2
+		done
+		rm -f "$file"
+		echo "  removed stale $file"
+	done
+}
+
+preserve_launcher() {
+	local path=$1 executable=$2 backup="$BACKUP_DIR/${1##*/}"
+	[[ -e $path || -L $path ]] || return 0
+	if [[ ! -L $path ]] && grep -q "$MARKER wrapper for app" "$path"; then
+		return 0
+	fi
+	if [[ $path == "$HOME/.local/bin/uv" && ! -L $path &&
+		$executable == "$HOME/.local/share/sandbox/runtimes/uv/uv" &&
+		-f $backup && ! -L $backup ]] && cmp -s "$path" "$backup" && cmp -s "$path" "$executable"; then
+		return 0
+	fi
+	if [[ ! -L $path || $(realpath "$path") != $(realpath "$executable") ]]; then
+		echo "refusing to replace unmanaged launcher: $path" >&2
+		return 1
+	fi
+	if [[ ! -e $backup && ! -L $backup ]]; then
+		mkdir -p "$BACKUP_DIR"
+		cp -P -- "$path" "$backup"
+		return
+	fi
+	if [[ ! -L $backup || $(readlink "$backup") != $(readlink "$path") ]]; then
+		echo "conflicting launcher backup: $backup" >&2
+		return 1
+	fi
+	return 0
+}
+
+app_cmd() {
+	config_query -r --arg app "$1" 'first(.apps[] | select(.name == $app) | .cmd)[]'
+}
+
+install_from_stdin() {
+	local path=$1 mode=$2 temporary_file="$1.tmp"
+	cat > "$temporary_file"
+	[[ $mode == executable ]] && chmod +x "$temporary_file"
+	mv "$temporary_file" "$path"
+}
+
+quoted_cmd() {
+	printf '%q ' "$@"
+}
+
+source_desktop_entry() {
+	local executable_name
+	executable_name=$(basename "$1")
+	grep -rls --include='*.desktop' -e "^Exec=.*$executable_name" \
+		"$DESKTOP_DIR" /usr/share/applications 2>/dev/null \
+		| grep -v -- '-sandboxed\.desktop$' \
+		| head -n1 || true
+}
+
+desktop_field() {
+	local file=$1 field=$2
+	grep -s "^$field=" "$file" | head -n1 | cut -d= -f2- || true
+}
+
+# Desktop Exec has both argument quoting and desktop-string escaping.
+desktop_cmd() {
+	local argument
+	for argument in "$@"; do
+		argument=${argument//\\/\\\\}
+		argument=${argument//\"/\\\"}
+		argument=${argument//\$/\\\$}
+		argument=${argument//\`/\\\`}
+		argument=${argument//%/%%}
+		argument=${argument//\\/\\\\}
+		printf '"%s" ' "$argument"
+	done
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	main "$@"
+fi

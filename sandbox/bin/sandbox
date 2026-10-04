@@ -1,0 +1,412 @@
+#!/usr/bin/env bash
+# Run commands as the invoking user inside the sandbox. See ../README.md.
+
+set -euo pipefail
+
+# Resolve the installed symlink before locating config and scripts.
+SANDBOX_ROOT=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)
+CONFIG="$SANDBOX_ROOT/sandbox.toml"
+source "$SANDBOX_ROOT/lib/query_config.sh"
+PROXY_CONFIG=/usr/local/lib/sandbox/apps.json
+PROXY_DIR=/usr/local/lib/sandbox
+
+main() {
+	read_config || exit 1
+	APP=$(config_query -r '.default' 2>/dev/null) || {
+		echo "cannot parse config: $CONFIG" >&2
+		exit 1
+	}
+	[[ -n $APP && $APP != null ]] || {
+		echo "no default app in $CONFIG" >&2
+		exit 1
+	}
+
+	DIRECTORY_ARGS=()
+	ENV_ARGS=()
+	CMD=()
+
+	MODE=run
+	if [[ ${1:-} =~ ^(up|down|status)$ ]]; then
+		MODE=$1
+		shift
+	fi
+
+	parse_args "$@"
+
+	if [[ $EUID -ne 0 || -z ${SUDO_UID:-} ]]; then
+		echo "sandbox must be run under sudo; inside the sandbox you are yourself" >&2
+		usage
+	fi
+
+	[[ $APP =~ ^[a-z][a-z0-9-]*$ ]] || {
+		echo "invalid app name: $APP" >&2
+		exit 1
+	}
+
+	if [[ $MODE != run ]]; then
+		"cmd_$MODE"
+		exit
+	fi
+
+	run_payload
+}
+
+run_payload() {
+	[[ ${#CMD[@]} -gt 0 ]] || CMD=(bash)
+
+	prepare_directories
+	prepare_network
+	prepare_mounts_and_environment
+	prepare_apparmor
+
+	exec ip netns exec "$NS" \
+		"${AA_EXEC[@]}" \
+		setpriv --reuid="$SUDO_UID" --regid="$SUDO_GID" --init-groups --reset-env --inh-caps=-all \
+		bwrap \
+			--clearenv \
+			--unshare-user \
+			--unshare-pid \
+			--unshare-ipc \
+			--unshare-cgroup \
+			--ro-bind / / \
+			--dev /dev \
+			--proc /proc \
+			--tmpfs /tmp \
+			"${BIND_ARGS[@]}" \
+			"${READ_ARGS[@]}" \
+			"${MASK_ARGS[@]}" \
+			"${GUI_ARGS[@]}" \
+			--ro-bind-try "/etc/netns/$NS/resolv.conf" /etc/resolv.conf \
+			"${CONFIG_ARGS[@]}" \
+			--chdir "$WORKING_DIRECTORY" \
+			--cap-drop ALL \
+			--new-session \
+			--die-with-parent \
+			--setenv PATH /usr/local/bin:/usr/bin:/bin \
+			--setenv HOME "$HOME_DIR" \
+			--setenv TERM "${TERM:-dumb}" \
+			--setenv LANG "${LANG:-C.UTF-8}" \
+			--setenv SANDBOX_APP "$APP" \
+			--setenv SANDBOX_DIRECTORY "$WORKING_DIRECTORY" \
+			--setenv SANDBOX_DIRECTORIES "${DIRECTORIES[*]}" \
+			--setenv SANDBOX_PROXY_HOST "$PROXY_HOST" \
+			--setenv SANDBOX_PROXY_PORT "$PROXY_PORT" \
+			"${APP_ENV_ARGS[@]}" \
+			"${ENV_ARGS[@]}" \
+			-- "${CMD[@]}"
+}
+
+cmd_up() {
+	"$SANDBOX_ROOT/host/up" "$PWD"
+	if systemctl is-active --quiet sandbox-proxy.service 2>/dev/null; then
+		echo "proxy: active (pid $(systemctl show -p MainPID --value sandbox-proxy.service))"
+		return
+	fi
+	echo "proxy: no systemd unit; running in the foreground (Ctrl-C stops it)" >&2
+	exec python3 "$PROXY_DIR/sandbox_proxy.py" --apps-json "$PROXY_CONFIG"
+}
+
+cmd_down() {
+	if ! systemctl is-active --quiet sandbox-proxy.service 2>/dev/null; then
+		pkill -f "$PROXY_DIR/sandbox_proxy.py" 2>/dev/null || true
+	fi
+	"$SANDBOX_ROOT/host/down"
+}
+
+cmd_status() {
+	local -a apps=()
+	mapfile -t apps < <(config_query -r '.apps[].name')
+
+	print_app_rows "${apps[@]}"
+	print_firewall_status
+	print_apparmor_status "${apps[@]}"
+	print_proxy_status
+	print_sudoers_status
+}
+
+parse_args() {
+	while [[ $# -gt 0 ]]; do
+		case $1 in
+		--app)
+			[[ $# -ge 2 ]] || usage
+			APP=$2
+			shift 2
+			;;
+		--app=*)
+			APP=${1#*=}
+			shift
+			;;
+		--directory)
+			[[ $# -ge 2 ]] || usage
+			DIRECTORY_ARGS+=("$2")
+			shift 2
+			;;
+		--directory=*)
+			DIRECTORY_ARGS+=("${1#*=}")
+			shift
+			;;
+		--env)
+			[[ $# -ge 2 ]] || usage
+			add_env "$2"
+			shift 2
+			;;
+		--env=*)
+			add_env "${1#*=}"
+			shift
+			;;
+		*)
+			# Everything after the command is passed verbatim.
+			CMD=("$@")
+			return
+			;;
+		esac
+	done
+}
+
+add_env() {
+	local name=${1%%=*} value
+	[[ $name =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] || usage
+	if [[ $1 == *=* ]]; then
+		value=${1#*=}
+	else
+		value=${!name-}
+	fi
+	ENV_ARGS+=(--setenv "$name" "$value")
+}
+
+prepare_directories() {
+	local paths directory allowed=0
+	paths=$(resolve_directories) || exit 1
+	DIRECTORIES=()
+	[[ -z $paths ]] || mapfile -t DIRECTORIES <<< "$paths"
+	for index in "${!DIRECTORIES[@]}"; do
+		[[ -d ${DIRECTORIES[$index]} ]] || {
+			echo "directory not found: ${DIRECTORIES[$index]}" >&2
+			exit 1
+		}
+	done
+	[[ ${#DIRECTORY_ARGS[@]} -le 1 ]] || {
+		echo "--directory may be supplied only once" >&2
+		exit 1
+	}
+	WORKING_DIRECTORY=$(realpath -e -- "${DIRECTORY_ARGS[0]:-$PWD}") || exit 1
+	[[ -d $WORKING_DIRECTORY ]] || { echo "not a directory: $WORKING_DIRECTORY" >&2; exit 1; }
+	if [[ ${#DIRECTORY_ARGS[@]} -gt 0 ]]; then
+		paths=$(app_readable_directories "$APP") || exit 1
+		while IFS= read -r directory; do
+			[[ -n $directory ]] || continue
+			if [[ $WORKING_DIRECTORY == "$directory" || $WORKING_DIRECTORY/ == "$directory/"* ]]; then
+				allowed=1
+			fi
+		done < <(printf '%s\n' "${DIRECTORIES[@]}" "$paths")
+		[[ $allowed == 1 ]] || { echo "directory not allowed for app '$APP': $WORKING_DIRECTORY" >&2; exit 1; }
+	fi
+
+	HOME_DIR=$(getent passwd "$SUDO_UID" | cut -d: -f6)
+	[[ -n $HOME_DIR ]] || {
+		echo "cannot resolve home for uid $SUDO_UID" >&2
+		exit 1
+	}
+}
+
+prepare_network() {
+	NS="sandbox-$APP"
+	PROFILE="sandbox-$APP"
+	ip netns list | grep -q "^$NS " || {
+		echo "network namespace $NS missing; add app '$APP' to sandbox/sandbox.toml and run:" >&2
+		echo "  sudo sandbox up" >&2
+		exit 1
+	}
+
+	[[ -r $PROXY_CONFIG ]] || {
+		echo "proxy config missing: $PROXY_CONFIG; run: sudo sandbox up" >&2
+		exit 1
+	}
+	local fingerprint
+	fingerprint=$(config_query -r '.policy_fingerprint') || exit 1
+	jq -e --arg fingerprint "$fingerprint" '.policy_fingerprint == $fingerprint' "$PROXY_CONFIG" >/dev/null || {
+		echo "installed policy is stale; run: sudo sandbox up" >&2
+		exit 1
+	}
+	PROXY_HOST=$(resolve_proxy_host "$APP")
+	[[ -n $PROXY_HOST ]] || {
+		echo "app '$APP' not in $PROXY_CONFIG; run: sudo sandbox up" >&2
+		exit 1
+	}
+	PROXY_PORT=$(jq -r '.proxy.sni_port' "$PROXY_CONFIG")
+}
+
+prepare_mounts_and_environment() {
+	CONFIG_PATH=$(canonical_config_path) || exit 1
+	local paths config_path
+	paths=$(config_paths) || exit 1
+	CONFIG_ARGS=()
+	while IFS= read -r config_path; do
+		CONFIG_ARGS+=(--ro-bind "$config_path" "$config_path")
+	done <<< "$paths"
+	GUI=$(config_query -r --arg app "$APP" 'first(.apps[] | select(.name == $app) | .gui // false)')
+	if [[ $GUI == true ]]; then
+		build_gui_args
+	else
+		GUI_ARGS=()
+	fi
+
+	BIND_ARGS=()
+	for directory in "${DIRECTORIES[@]}"; do
+		BIND_ARGS+=(--bind "$directory" "$directory")
+	done
+
+	APP_ENV_ARGS=()
+	local codex_home
+	codex_home=$(app_codex_home "$APP")
+	if [[ -n $codex_home ]]; then
+		APP_ENV_ARGS=(--setenv CODEX_HOME "$(realpath "$codex_home")")
+	fi
+	READ_ARGS=()
+	while IFS= read -r directory; do
+		READ_ARGS+=(--ro-bind "$directory" "$directory")
+	done < <(app_readable_directories "$APP")
+
+	build_mask_args "$HOME_DIR"
+}
+
+prepare_apparmor() {
+	# Fail closed unless the caller explicitly waives AppArmor.
+	if aa-exec -p "$PROFILE" true 2>/dev/null; then
+		AA_EXEC=(aa-exec -p "$PROFILE" --)
+	elif [[ ${SANDBOX_ALLOW_NO_APPARMOR:-0} == 1 ]]; then
+		echo "WARNING: proceeding without the AppArmor profile (SANDBOX_ALLOW_NO_APPARMOR=1)" >&2
+		AA_EXEC=()
+	else
+		echo "AppArmor profile '$PROFILE' not loaded; run: sudo sandbox up" >&2
+		echo "set SANDBOX_ALLOW_NO_APPARMOR=1 to proceed without file rules (not recommended)" >&2
+		exit 1
+	fi
+}
+
+resolve_directories() {
+	config_query -e --arg app "$APP" 'any(.apps[]; .name == $app)' >/dev/null || {
+		echo "unknown app: $APP" >&2
+		return 1
+	}
+	app_writable_directories "$APP"
+}
+
+resolve_proxy_host() {
+	local app=$1
+	jq -r --arg app "$app" 'first(.apps[] | select(.name == $app) | .ip)' "$PROXY_CONFIG" 2>/dev/null || true
+}
+
+# Mask only existing directories; creating a mountpoint on the read-only root fails.
+build_mask_args() {
+	local mask
+	local masks=(
+		.ssh .gnupg .aws .kube .mozilla
+		.config/google-chrome .config/chromium
+		.password-store .local/share/keyrings
+	)
+	MASK_ARGS=()
+	for mask in "${masks[@]}"; do
+		[[ -d $1/$mask ]] || continue
+		MASK_ARGS+=(--tmpfs "$1/$mask")
+	done
+	while IFS= read -r mask; do
+		[[ -d $mask ]] || continue
+		MASK_ARGS+=(--tmpfs "$mask")
+	done < <(app_private_directories "$APP")
+}
+
+build_gui_args() {
+	GUI_ARGS=()
+	local variable
+	for variable in DISPLAY WAYLAND_DISPLAY XAUTHORITY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS; do
+		[[ -n ${!variable:-} ]] || continue
+		GUI_ARGS+=(--setenv "$variable" "${!variable}")
+	done
+	# AppImages need extraction because FUSE is unavailable inside.
+	GUI_ARGS+=(--setenv APPIMAGE_EXTRACT_AND_RUN 1)
+	GUI_ARGS+=(
+		--bind-try /tmp/.X11-unix /tmp/.X11-unix
+		--bind-try "/run/user/$SUDO_UID" "/run/user/$SUDO_UID"
+		--bind-try /dev/dri /dev/dri
+	)
+}
+
+print_app_rows() {
+	local -a apps=("$@")
+	local app row ip endpoint_count netns
+
+	printf '%-10s %-6s %-13s %s\n' app netns ip endpoints
+	for app in "${apps[@]}"; do
+		if ip netns list 2>/dev/null | grep -q "^sandbox-$app "; then
+			netns=up
+		else
+			netns=down
+		fi
+		row=""
+		[[ -r $PROXY_CONFIG ]] && row=$(jq -r --arg app "$app" \
+			'first(.apps[] | select(.name == $app)) | .ip // empty' "$PROXY_CONFIG")
+		endpoint_count=$(config_query -r --arg app "$app" \
+			'first(.apps[] | select(.name == $app)) | .endpoints | length')
+		if [[ -n $row ]]; then
+			ip=$row
+		else
+			ip=-
+			endpoint_count+=" (config)"
+		fi
+		printf '%-10s %-6s %-13s %s\n' "$app" "$netns" "$ip" "$endpoint_count"
+	done
+}
+
+print_firewall_status() {
+	if nft list table ip sandbox >/dev/null 2>&1; then
+		echo "nftables: filtered (table ip sandbox, pool $(config_query -r '.net.subnet'))"
+	else
+		echo "nftables: not installed"
+	fi
+}
+
+print_apparmor_status() {
+	local -a apps=("$@")
+	local app loaded=0
+
+	for app in "${apps[@]}"; do
+		[[ -f /etc/apparmor.d/sandbox-$app ]] && loaded=$((loaded + 1))
+	done
+	echo "apparmor: $loaded/${#apps[@]} profiles loaded"
+}
+
+print_proxy_status() {
+	local pid since
+
+	if [[ -d /run/systemd/system ]] && systemctl is-active --quiet sandbox-proxy.service 2>/dev/null; then
+		pid=$(systemctl show -p MainPID --value sandbox-proxy.service)
+		since=$(systemctl show -p ActiveEnterTimestamp --value sandbox-proxy.service)
+		if [[ -n $pid && -n $since ]]; then
+			echo "proxy:    active (pid $pid, since $since)"
+		else
+			echo "proxy:    active"
+		fi
+	elif [[ -x $PROXY_DIR/sandbox_proxy.py ]]; then
+		echo "proxy:    not running (runtime present; sudo sandbox up starts it)"
+	else
+		echo "proxy:    not installed"
+	fi
+}
+
+print_sudoers_status() {
+	if [[ -f /etc/sudoers.d/sandbox ]]; then
+		echo "sudoers:  installed"
+	else
+		echo "sudoers:  not installed"
+	fi
+}
+
+usage() {
+	echo "usage: sudo bin/sandbox [--app NAME] [--directory DIR] [--env VAR[=VAL]]... [up|down|status|CMD [ARGS...]]" >&2
+	exit 1
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	main "$@"
+fi

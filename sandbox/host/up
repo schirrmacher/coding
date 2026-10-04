@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+# Install host confinement and start the proxy. See ../README.md.
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CONFIG="$SCRIPT_DIR/../sandbox.toml"
+PROXY_DIR=/usr/local/lib/sandbox
+source "$SCRIPT_DIR/../lib/query_config.sh"
+source "$SCRIPT_DIR/../lib/render_apparmor.sh"
+
+main() {
+	[[ $EUID -eq 0 ]] || {
+		echo "sandbox up must run as root: sudo $0" >&2
+		usage
+	}
+
+	DEFAULT_PROJECT_DIRECTORY=$(realpath "${1:-$(dirname "$SCRIPT_DIR")}")
+
+	load_config
+	[[ ${#APPS[@]} -gt 0 ]] || die "$CONFIG declares no apps"
+
+	echo "==> apps: ${APPS[*]}"
+
+	NS_SUMMARY=""
+	index=0
+	for app in "${APPS[@]}"; do
+		namespace_ip=$(create_app_network "$app" "$index")
+		NS_SUMMARY+="${NS_SUMMARY:+, }$app $namespace_ip"
+		index=$((index + 1))
+	done
+	echo "==> netns: $NS_SUMMARY"
+
+	install_firewall
+	install_apparmor
+	install_proxy
+	install_sudoers
+
+	BASE="sudo sandbox"
+	[[ -e /usr/local/bin/sandbox ]] || BASE="sudo $DEFAULT_PROJECT_DIRECTORY/sandbox/bin/sandbox"
+
+	echo
+	echo "Sandbox ready. Shell: $BASE [--app NAME] bash"
+	echo "   Status: $BASE status"
+	echo "   Test:   $BASE bash $DEFAULT_PROJECT_DIRECTORY/sandbox/tests/boundary/test_boundary.sh"
+}
+
+load_config() {
+	validate_config
+	SUBNET=$(config_query -r '.net.subnet')
+	local octet
+	local -a octets
+	IFS=. read -r -a octets <<< "${SUBNET%/*}"
+	for octet in "${octets[@]}"; do
+		[[ $octet == 0 || $octet != 0* ]] && ((10#$octet <= 255)) \
+			|| die "$CONFIG: invalid IPv4 subnet"
+	done
+
+	POOL_BASE=${SUBNET%.*}
+	POOL_PREFIX=${SUBNET#*/}
+	POOL_CIDR=$SUBNET
+	POOL_CAPACITY=$(( (1 << (32 - POOL_PREFIX)) / 4 ))
+	SNI_PORT=$(config_query -r '.proxy.sni_port')
+	DNS_PORT=$(config_query -r '.proxy.dns_port')
+	mapfile -t APPS < <(config_query -r '.apps[].name')
+	[[ ${#APPS[@]} -le $POOL_CAPACITY ]] \
+		|| die "$CONFIG: $POOL_CAPACITY apps fit in $POOL_CIDR (4 addresses each); found ${#APPS[@]}"
+
+	prepare_app_state
+	validate_app_directories
+}
+
+prepare_app_state() {
+	local directory home uid=${SUDO_UID:-$UID} gid=${SUDO_GID:-$(id -g)}
+	local -a user_command=(setpriv --reuid="$uid" --regid="$gid" --init-groups --reset-env)
+	while IFS= read -r directory; do
+		"${user_command[@]}" mkdir -p -- "$directory"
+	done < <(config_query -r '.apps[].dir.state // [] | .[]')
+	home=$(getent passwd "$uid" | cut -d: -f6)
+	if config_query -e --arg executable "$home/.local/share/sandbox/runtimes/uv/uv" \
+		'any(.apps[]; .name == "uv" and .cmd[-1] == $executable)' >/dev/null; then
+		"${user_command[@]}" python3 "$SCRIPT_DIR/../lib/prepare_uv.py"
+	fi
+}
+
+validate_app_directories() {
+	# Nested writable binds would depend on mount order.
+	local app directories index other_index directory
+	for app in "${APPS[@]}"; do
+		mapfile -t directories < <(app_writable_directories "$app" "$DEFAULT_PROJECT_DIRECTORY")
+		for directory in "${directories[@]}"; do
+			[[ -d $directory ]] || die "app '$app': directory '$directory' (from sandbox.toml) does not exist"
+		done
+		while IFS= read -r directory; do
+			[[ -d $directory ]] || die "app '$app': readable directory '$directory' does not exist"
+		done < <(app_readable_directories "$app")
+		for index in "${!directories[@]}"; do
+			for other_index in "${!directories[@]}"; do
+				[[ $index == $other_index || ${directories[$other_index]}/ != "${directories[$index]}"/* ]] && continue
+				die "app '$app': directory '${directories[$other_index]}' is inside '${directories[$index]}'"
+			done
+		done
+	done
+}
+
+create_app_network() {
+	local app=$1 index=$2
+	local namespace="sandbox-$app"
+	local host_veth="sbh$index" namespace_veth="sbe$index"
+	local host_ip namespace_ip
+	host_ip=$(pool_host_ip "$index")
+	namespace_ip=$(pool_ns_ip "$index")
+
+	if ! ip netns list | grep -q "^$namespace "; then
+		ip netns add "$namespace"
+	fi
+
+	# Recreate veths so reruns pick up configuration changes.
+	ip link del "$host_veth" 2>/dev/null || true
+	ip link add "$host_veth" type veth peer name "$namespace_veth"
+	ip link set "$namespace_veth" netns "$namespace"
+
+	ip addr add "$host_ip/30" dev "$host_veth"
+	ip link set "$host_veth" up
+
+	ip netns exec "$namespace" ip link set lo up
+	ip netns exec "$namespace" ip addr add "$namespace_ip/30" dev "$namespace_veth"
+	ip netns exec "$namespace" ip link set "$namespace_veth" up
+	ip netns exec "$namespace" ip route replace default via "$host_ip"
+
+	# ip netns exec binds this resolver over /etc/resolv.conf.
+	mkdir -p "/etc/netns/$namespace"
+	printf 'nameserver %s\n' "$host_ip" > "/etc/netns/$namespace/resolv.conf"
+	echo "$namespace_ip"
+}
+
+# Filter only sandbox sources; other host traffic keeps the accept policy.
+# Use IPv4 rules; redirect precedes filtering, which sees the proxy port.
+install_firewall() {
+	echo "==> nftables: pool $POOL_CIDR limited to DNS + SNI proxy"
+
+	nft list table ip sandbox >/dev/null 2>&1 && nft delete table ip sandbox
+	nft -f - <<EOF
+table ip sandbox {
+	chain prerouting {
+		type nat hook prerouting priority dstnat; policy accept;
+		# Redirect HTTPS to the proxy, which checks SNI against the source app.
+		ip saddr $POOL_CIDR tcp dport 443 redirect to :$SNI_PORT
+	}
+	chain input {
+		type filter hook input priority 10; policy accept;
+		ip saddr $POOL_CIDR tcp dport $SNI_PORT accept
+		ip saddr $POOL_CIDR udp dport $DNS_PORT accept
+		ip saddr $POOL_CIDR tcp dport $DNS_PORT accept
+		ip saddr $POOL_CIDR counter drop
+	}
+	chain forward {
+		type filter hook forward priority 10; policy accept;
+		ip saddr $POOL_CIDR counter drop
+	}
+}
+EOF
+}
+
+install_apparmor() {
+	if [[ ! -d /sys/kernel/security/apparmor ]] || ! command -v apparmor_parser >/dev/null; then
+		echo "WARNING: AppArmor not available; file rules will not be enforced" >&2
+		return
+	fi
+
+	local app rules gui_rules profile_path
+	for app in "${APPS[@]}"; do
+		rules=$(app_file_rules "$app" "$DEFAULT_PROJECT_DIRECTORY")
+		gui_rules=$(app_gui_rules "$app")
+		profile_path="/etc/apparmor.d/sandbox-$app"
+		awk -v app="$app" -v rules="$rules" -v gui_rules="$gui_rules" '
+			$0 == "@DIRECTORY_RULES@" { print rules; next }
+			$0 == "@GUI_RULES@" { print gui_rules; next }
+			{
+				if ($0 !~ /^[ \t]*#/) gsub(/@SANDBOX_APP@/, app)
+				print
+			}' \
+			"$SCRIPT_DIR/../apparmor/sandbox_template" > "$profile_path"
+		apparmor_parser -r "$profile_path"
+		if [[ ${SANDBOX_VERBOSE:-0} == 1 ]]; then
+			echo "    loaded sandbox-$app (directories: $(app_writable_directories "$app" "$DEFAULT_PROJECT_DIRECTORY" | paste -sd " "))"
+		fi
+	done
+	echo "==> apparmor: ${#APPS[@]} profiles loaded"
+}
+
+install_proxy() {
+	echo "==> proxy service"
+
+	mkdir -p "$PROXY_DIR"
+	cp "$SCRIPT_DIR/../proxy/sandbox_proxy.py" "$PROXY_DIR/"
+
+	config_query '
+		{
+			policy_fingerprint: .policy_fingerprint,
+			net:   { subnet: .net.subnet },
+			proxy: { sni_port: .proxy.sni_port, dns_port: .proxy.dns_port },
+			apps:  [ .apps | to_entries[] | .key as $index | .value |
+				{
+					ip:       ($pool + "." + (((4 * $index) + 1) | tostring)),
+					netns_ip: ($pool + "." + (((4 * $index) + 2) | tostring)),
+					name: .name,
+					endpoints: [.endpoints[] | ascii_downcase | rtrimstr(".")]
+				}
+			]
+		}
+	' --arg pool "$POOL_BASE" > "$PROXY_DIR/apps.json"
+	echo "==> proxy config: $PROXY_DIR/apps.json"
+
+	if [[ -d /run/systemd/system ]] && command -v systemctl >/dev/null; then
+		cp "$SCRIPT_DIR/../proxy/sandbox-proxy.service" /etc/systemd/system/
+		systemctl daemon-reload
+		systemctl enable --quiet sandbox-proxy.service
+		systemctl restart sandbox-proxy.service
+	else
+		echo "    no systemd; the proxy will run in the foreground (Ctrl-C stops it)"
+	fi
+}
+
+# Only the launcher receives passwordless sudo; it drops privileges before execution.
+install_sudoers() {
+	local user=${SUDO_USER:-} launcher temporary_file
+	local rules=()
+	[[ -n $user ]] || {
+		echo "WARNING: no SUDO_USER; skipping sudoers setup" >&2
+		return
+	}
+	launcher=$(realpath "$SCRIPT_DIR/../bin/sandbox")
+	rules+=("$user ALL=(root) NOPASSWD: $launcher")
+	rules+=("$user ALL=(root) NOPASSWD: /usr/local/bin/sandbox")
+	temporary_file=$(mktemp)
+	{
+		echo "# Managed by sandbox up: passwordless sudo for the sandbox launcher."
+		echo "# The launcher drops every privilege back to the invoking user."
+		printf '%s\n' "${rules[@]}"
+	} > "$temporary_file"
+	if [[ -f /etc/sudoers.d/sandbox ]] \
+		&& [[ $(cat /etc/sudoers.d/sandbox) == *"${rules[0]}"* ]] \
+		&& [[ $(cat /etc/sudoers.d/sandbox) == *"${rules[1]}"* ]]; then
+		rm -f "$temporary_file"
+		echo "==> sudoers: /etc/sudoers.d/sandbox already current"
+		return
+	fi
+	if command -v visudo >/dev/null; then
+		visudo -cf "$temporary_file" >/dev/null || {
+			rm -f "$temporary_file"
+			die "generated sudoers rule failed visudo check"
+		}
+	else
+		echo "WARNING: visudo not found; installing without syntax check" >&2
+	fi
+	install -m 0440 "$temporary_file" /etc/sudoers.d/sandbox
+	rm -f "$temporary_file"
+	echo "==> sudoers: installed /etc/sudoers.d/sandbox (launcher + /usr/local/bin/sandbox)"
+}
+
+# Reserve four addresses per app: host 4i+1, namespace 4i+2.
+pool_host_ip() {
+	echo "$POOL_BASE.$((4 * $1 + 1))"
+}
+
+pool_ns_ip() {
+	echo "$POOL_BASE.$((4 * $1 + 2))"
+}
+
+die() {
+	echo "$1" >&2
+	exit 1
+}
+
+usage() {
+	echo "usage: sudo host/up [project-directory]" >&2
+	exit 1
+}
+
+if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
+	main "$@"
+fi
