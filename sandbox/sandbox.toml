@@ -40,18 +40,47 @@ cmd = [
     "/usr/bin/env",
     "GH_CONFIG_DIR=${HOME}/.local/share/sandbox/gh",
     "GH_NO_UPDATE_NOTIFIER=1",
+    "CARGO_HOME=${HOME}/.local/share/sandbox/cargo",
+    "RUSTUP_HOME=${HOME}/.rustup",
+    "RUSTUP_AUTO_INSTALL=0",
+    "CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse",
+    "UV_CACHE_DIR=${HOME}/.local/share/sandbox/uv/cache",
+    "UV_PYTHON_INSTALL_DIR=${HOME}/.local/share/sandbox/uv/python",
+    "UV_PYTHON_BIN_DIR=${HOME}/.local/share/sandbox/uv/python-bin",
+    "UV_TOOL_DIR=${HOME}/.local/share/sandbox/uv/tools",
+    "UV_TOOL_BIN_DIR=${HOME}/.local/share/sandbox/uv/bin",
+    "UV_NO_MODIFY_PATH=1",
+    "PATH=${HOME}/.cargo/bin:${HOME}/.local/share/sandbox/cargo/bin:${HOME}/.local/share/sandbox/runtimes/uv:${HOME}/.local/share/sandbox/uv/bin:${HOME}/.local/share/sandbox/uv/python-bin:/usr/local/bin:/usr/bin:/bin",
     "${HOME}/.local/share/codex/current/bin/codex",
 ]
 
 codex_home = "${HOME}/.codex"
-dir.read = ["${HOME}/.agents", "${HOME}/.orca/agent-hooks", "${HOME}/.local/share/codex"]
-dir.state = ["${HOME}/.local/share/sandbox/gh"]
+dir.read = [
+    "${HOME}/.agents",
+    "${HOME}/.orca/agent-hooks",
+    "${HOME}/.local/share/codex",
+    "${HOME}/.cargo/bin",
+    "${HOME}/.rustup",
+    "${HOME}/.local/share/sandbox/runtimes/uv",
+    "/usr/include",
+]
+dir.state = [
+    "${HOME}/.local/share/sandbox/gh",
+    "${HOME}/.local/share/sandbox/cargo",
+    "${HOME}/.local/share/sandbox/uv",
+]
 endpoints = [
     "github.com",
     "api.github.com",
     "api.openai.com",
     "chatgpt.com",
     "auth.openai.com",
+    "index.crates.io",
+    "static.crates.io",
+    "crates.io",
+    "pypi.org",
+    "files.pythonhosted.org",
+    "release-assets.githubusercontent.com",
 ]
 
 [[apps]]
@@ -129,7 +158,7 @@ cmd = [
 ]
 
 dir.state = ["${HOME}/.local/share/sandbox/cargo"]
-dir.read = ["${HOME}/.cargo/bin", "${HOME}/.rustup"]
+dir.read = ["${HOME}/.cargo/bin", "${HOME}/.rustup", "/usr/include"]
 endpoints = ["index.crates.io", "static.crates.io", "crates.io"]
 
 [[apps]]

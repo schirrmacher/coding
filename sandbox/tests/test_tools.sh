@@ -41,6 +41,7 @@ main() {
 		cat > "$TOOL_FIXTURE/child_probe.py" <<'PY'
 import errno
 import os
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -58,6 +59,13 @@ else:
 tls(os.environ["SANDBOX_PROXY_HOST"], "blocked.sandbox-test.invalid", False)
 if os.environ["SANDBOX_APP"] == "cargo":
     assert os.statvfs(Path.home() / ".rustup").f_flag & os.ST_RDONLY
+    with tempfile.TemporaryDirectory() as directory:
+        binary = Path(directory) / "native-smoke"
+        subprocess.run(["cc", "-x", "c", "-", "-o", str(binary)],
+                       input='#include <stdio.h>\nint main(void) { return puts("ok") < 0; }\n',
+                       text=True, check=True)
+        result = subprocess.run([str(binary)], text=True, capture_output=True, check=True)
+        assert result.stdout == "ok\n"
 else:
     import idna
     assert idna.encode("example.com") == b"example.com"
