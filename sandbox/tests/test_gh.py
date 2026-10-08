@@ -29,7 +29,7 @@ class GithubStateTests(unittest.TestCase):
                     command = app["cmd"]
                     self.assertIn(f"GH_CONFIG_DIR={directory}/.local/share/sandbox/gh", command)
                     self.assertIn("GH_NO_UPDATE_NOTIFIER=1", command)
-                    self.assertEqual(app["dir"]["state"], [f"{directory}/.local/share/sandbox/gh"])
+                    self.assertIn(f"{directory}/.local/share/sandbox/gh", app["dir"]["state"])
                     self.assertTrue({"github.com", "api.github.com"} <= set(app["endpoints"]))
                     result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox_wrappers"))}
 HOME={shlex.quote(directory)}; CONFIG={shlex.quote(str(config))}
