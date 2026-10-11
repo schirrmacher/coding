@@ -45,6 +45,13 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("FAIL sandbox checks", result.stdout)
 
+    def test_installed_success_is_reported_separately_from_regression_failure(self):
+        result = self.run_main("--installed --app zed", overrides="local_checks() { return 1; }")
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.count("FAIL local checks"), 1)
+        self.assertEqual(result.stdout.count("PASS installed checks"), 1)
+        self.assertIn("FAIL sandbox checks", result.stdout)
+
     def test_app_selection_and_installed_exit_codes(self):
         with tempfile.TemporaryDirectory() as directory:
             config = Path(directory) / "config.toml"
@@ -185,6 +192,22 @@ class BoundaryTests(unittest.TestCase):
             original = settings.read_bytes()
             probe.locked_read(settings)
             self.assertEqual(settings.read_bytes(), original)
+
+    def test_file_chooser_probe_requires_server_argument_rejection(self):
+        responses = [
+            (subprocess.CompletedProcess([], 1, "", "Error org.freedesktop.DBus.Error.InvalidArgs: missing arguments"), True),
+            (subprocess.CompletedProcess([], 1, "", "Error org.freedesktop.DBus.Error.AccessDenied: AppArmor policy"), False),
+            (subprocess.CompletedProcess([], 1, "", "Error org.freedesktop.DBus.Error.ServiceUnknown"), False),
+            (subprocess.CompletedProcess([], 0, "unexpected success", ""), False),
+        ]
+        for response, allowed in responses:
+            with self.subTest(response=response), patch.object(probe.subprocess, "run", return_value=response) as call:
+                if allowed:
+                    probe.file_chooser_access()
+                else:
+                    with self.assertRaises(AssertionError):
+                        probe.file_chooser_access()
+                self.assertEqual(call.call_args.args[0][-1], "org.freedesktop.portal.FileChooser.OpenFile")
 
     def test_config_probe_refuses_to_modify_a_writable_host_file(self):
         with tempfile.TemporaryDirectory() as directory:

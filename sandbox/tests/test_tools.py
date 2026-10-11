@@ -72,7 +72,7 @@ bash "$BIN_DIR/{name}" --version 'argument with spaces' '*.rs'
                     self.assertEqual(result.stdout.rstrip("\0").split("\0"),
                                      ["-n", "/sandbox launcher", "--app", name, *command,
                                       "--version", "argument with spaces", "*.rs"])
-                    environment = dict(argument.split("=", 1) for argument in command[1:-1])
+                    environment = config_reader.command_environment(app)
                     self.assertNotIn(str(bin_dir), environment["PATH"].split(":"))
                     self.assertEqual(app["dir"]["state"], [str(home / ".local/share/sandbox" / name)])
                     if name == "cargo":

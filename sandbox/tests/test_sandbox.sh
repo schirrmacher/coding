@@ -56,14 +56,22 @@ main() {
 			}
 		done
 	fi
-	local_checks || result=1
+	if local_checks; then
+        echo "PASS local checks"
+    else
+        echo "FAIL local checks"
+        result=1
+    fi
 	if [[ $installed == 1 ]]; then
-		installed_checks || {
+        if installed_checks; then
+            echo "PASS installed checks"
+        else
 			code=$?
 			[[ $code == 2 ]] && return 2
-			result=1
-		}
-	fi
+            echo "FAIL installed checks"
+            result=1
+        fi
+    fi
 
 	if [[ $result == 0 ]]; then
 		echo "PASS sandbox checks"
@@ -76,7 +84,8 @@ main() {
 local_checks() {
 	local failed=0 script
 	for script in "$SANDBOX_ROOT"/bin/* "$SANDBOX_ROOT"/host/* "$SANDBOX_ROOT"/lib/*.sh \
-		"$SANDBOX_ROOT"/tests/*.sh "$SANDBOX_ROOT"/tests/boundary/*.sh; do
+		"$SANDBOX_ROOT"/lib/launch/*.sh "$SANDBOX_ROOT"/lib/install/*.sh "$SANDBOX_ROOT"/lib/host/*.sh \
+        "$SANDBOX_ROOT"/tests/*.sh "$SANDBOX_ROOT"/tests/boundary/*.sh; do
 		if bash -n "$script"; then
 			printf 'PASS syntax: %s\n' "${script#"$SANDBOX_ROOT"/}"
 		else
@@ -156,6 +165,7 @@ verify_app() {
 		--env "SANDBOX_TEST_CONFIG=$(canonical_config_path)" \
 		--env "SANDBOX_TEST_CONFIGS=$(config_query -c '.config_paths')" \
 		--env "SANDBOX_TEST_UID=$(id -u)" \
+        --env "SANDBOX_TEST_GUI=$(policy_query gui "$app")" \
 		--env "SANDBOX_TEST_DIRECTORIES=$directories" \
 		--env "SANDBOX_TEST_ENDPOINTS=$endpoints" \
 		--env "SANDBOX_TEST_READABLE=$readable" \

@@ -139,3 +139,9 @@ install-shell:
 
 install-sandbox:
 	@$(SANDBOX_DIR)/bin/sandbox_wrappers
+
+.PHONY: install-apps
+
+install-apps:
+	@python3 $(SANDBOX_DIR)/lib/install_apps.py
+	@$(MAKE) install-sandbox

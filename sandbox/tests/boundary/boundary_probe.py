@@ -5,6 +5,7 @@ import fcntl
 import os
 import socket
 import ssl
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -20,6 +21,8 @@ def main():
     mode, *args = sys.argv[1:]
     if mode == "confinement":
         confinement()
+    elif mode == "file-chooser":
+        file_chooser_access()
     elif mode == "secrets":
         secrets()
     elif mode == "writable":
@@ -42,10 +45,23 @@ def main():
         tls(args[0], args[1], False)
     elif mode == "tcp-deny":
         tcp_denied(*args)
+    elif mode == "offline-network":
+        offline_network(*args)
     elif mode == "http-deny":
         http_denied(*args)
     else:
         raise ValueError(f"unknown probe: {mode}")
+
+
+def file_chooser_access():
+    # A deliberately invalid signature tests the permission without opening a dialog.
+    result = subprocess.run([
+        "dbus-send", "--session", "--print-reply", "--reply-timeout=3000",
+        "--dest=org.freedesktop.portal.Desktop", "/org/freedesktop/portal/desktop",
+        "org.freedesktop.portal.FileChooser.OpenFile",
+    ], text=True, capture_output=True, timeout=TIMEOUT)
+    assert result.returncode != 0 and "org.freedesktop.DBus.Error.InvalidArgs" in result.stderr, \
+        "FileChooser did not accept the method call: " + result.stderr.strip()
 
 
 def confinement():
@@ -224,9 +240,33 @@ def tcp_denied(host, port):
     try:
         with socket.create_connection((host, int(port)), timeout=TIMEOUT):
             pass
-    except (TimeoutError, ConnectionRefusedError):
-        return
+    except OSError as error:
+        if error.errno in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.ECONNREFUSED, errno.ETIMEDOUT) or isinstance(error, TimeoutError):
+            return
+        raise
     raise AssertionError("prohibited TCP connection succeeded")
+
+
+def offline_network(proxy_host, proxy_port):
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        with socket.create_connection(listener.getsockname(), timeout=TIMEOUT):
+            connection, _ = listener.accept()
+            connection.close()
+    for host, port in ((proxy_host, proxy_port), (proxy_host, 53), ("1.1.1.1", 443)):
+        tcp_denied(host, port)
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as dns:
+        dns.settimeout(TIMEOUT)
+        try:
+            dns.sendto(b"\x00\x01\x01\x00\x00\x01\x00\x00\x00\x00\x00\x00"
+                       b"\x07example\x03com\x00\x00\x01\x00\x01", (proxy_host, 53))
+            dns.recv(512)
+        except OSError as error:
+            if error.errno in (errno.ENETUNREACH, errno.EHOSTUNREACH, errno.ECONNREFUSED) or isinstance(error, TimeoutError):
+                return
+            raise
+    raise AssertionError("offline DNS returned a response")
 
 
 def http_denied(host, port):

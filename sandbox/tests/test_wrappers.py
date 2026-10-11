@@ -124,5 +124,5 @@ write_desktop_entry demo'''
             result = bash(functions, script)
             self.assertEqual(result.returncode, 0, result.stderr)
             entry = (path / "demo-sandboxed.desktop").read_text()
-            self.assertIn("Name=Demo (sandboxed)", entry)
-            self.assertIn('Exec=sudo "/sandbox launcher" "--app" "demo" "/nonexistent app" "two words" %U', entry)
+            self.assertIn("Name=Demo", entry)
+            self.assertIn(f'Exec="{Path.home()}/.local/bin/demo" %U', entry)

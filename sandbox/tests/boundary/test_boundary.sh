@@ -29,10 +29,6 @@ main() {
 		mapfile -t endpoints < <(jq -r --arg app "$app" \
 			'.apps[] | select(.name == $app) | .endpoints[]' "$PROXY_CONFIG")
 	fi
-	[[ ${#endpoints[@]} -gt 0 ]] || {
-		echo "ERROR no endpoints for $app" >&2
-		return 2
-	}
 
 	if [[ -n ${SANDBOX_TEST_DIRECTORIES:-} ]]; then
 		mapfile -t directories < <(jq -r '.[]' <<< "$SANDBOX_TEST_DIRECTORIES")
@@ -47,6 +43,9 @@ main() {
 
 	echo "==> boundary: $app"
 	check "identity, capabilities, AppArmor, and environment" python3 "$PROBE" confinement
+    if [[ ${SANDBOX_TEST_GUI:-false} == true ]]; then
+        check "FileChooser portal accessible without opening a dialog" python3 "$PROBE" file-chooser
+    fi
 	check "secret directories hidden or denied" python3 "$PROBE" secrets
 	check "host fixture is read-only" python3 "$PROBE" readonly
 	if [[ -n ${SANDBOX_TEST_CONFIGS:-} ]]; then
@@ -70,15 +69,19 @@ main() {
 		check "other app state denied: $directory" python3 "$PROBE" private-directory "$directory"
 	done < <(jq -r '.[]' <<< "${SANDBOX_TEST_PRIVATE:-[]}")
 
-	# Positive controls prevent an offline proxy from passing all denial checks.
-	for endpoint in "${endpoints[@]}"; do
-		check "DNS: $endpoint" python3 "$PROBE" dns "$endpoint"
-		check "allowed TLS: $endpoint" python3 "$PROBE" tls-allow "$endpoint"
-	done
-	check "denied SNI" python3 "$PROBE" tls-deny "$proxy_host" "$blocked"
-	check "TLS without SNI" python3 "$PROBE" tls-deny "$proxy_host" ''
-	check "direct IP TLS without SNI" python3 "$PROBE" tls-deny 1.1.1.1 ''
-	check "plain HTTP rejected" python3 "$PROBE" http-deny "$proxy_host" "$proxy_port"
+	if [[ ${#endpoints[@]} == 0 ]]; then
+		check "offline network with working loopback" python3 "$PROBE" offline-network "$proxy_host" "$proxy_port"
+	else
+		# Positive controls prevent a broken proxy from passing all denial checks.
+		for endpoint in "${endpoints[@]}"; do
+			check "DNS: $endpoint" python3 "$PROBE" dns "$endpoint"
+			check "allowed TLS: $endpoint" python3 "$PROBE" tls-allow "$endpoint"
+		done
+		check "denied SNI" python3 "$PROBE" tls-deny "$proxy_host" "$blocked"
+		check "TLS without SNI" python3 "$PROBE" tls-deny "$proxy_host" ''
+		check "direct IP TLS without SNI" python3 "$PROBE" tls-deny 1.1.1.1 ''
+		check "plain HTTP rejected" python3 "$PROBE" http-deny "$proxy_host" "$proxy_port"
+	fi
 	check "direct TCP DNS denied" python3 "$PROBE" tcp-deny 8.8.8.8 53
 	check "host port 22 denied" python3 "$PROBE" tcp-deny "$proxy_host" 22
 	printf '%d passed, %d failed\n' "$PASS" "$FAIL"
