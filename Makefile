@@ -11,27 +11,19 @@ SHARED_SKILL_DIRS := $(CLAUDE_SKILLS_DIR) $(AGENTS_SKILLS_DIR)
 OPENCODE_SKILLS_DIR := $(HOME)/.config/opencode/skills
 OPENCODE_COMMANDS_DIR := $(HOME)/.config/opencode/commands
 OPENCODE_COMMAND_MARKER := <!-- Installed as an OpenCode command by the skills Makefile. -->
-OPENCODE_CONFIG := $(HOME)/.config/opencode/opencode.jsonc
-
-OUTPUT_STYLES_DIR := $(HOME)/.claude/output-styles
-OUTPUT_STYLE_NAMES := $(notdir $(wildcard $(CURDIR)/output-styles/*.md))
-CLAUDE_SETTINGS := $(HOME)/.claude/settings.json
-DEFAULT_OUTPUT_STYLE := Plain
-DEFAULT_STYLE_FILE := plain.md
-
 GITCONFIG_PATH := $(CURDIR)/git/gitconfig
 NANORC_PATH := $(CURDIR)/nano/nanorc
 SANDBOX_DIR := $(CURDIR)/sandbox
 
 .PHONY: all install install-skills install-opencode-commands \
-        install-claude-style install-opencode-style install-git install-nano \
+        install-git install-nano \
         install-shell install-sandbox
 
 # Installation touches shared user settings; keep the listed order under make -j.
 .NOTPARALLEL: all install
 
 all: install-skills install-opencode-commands \
-     install-claude-style install-opencode-style install-git install-nano \
+     install-git install-nano \
      install-shell install-sandbox
 	@echo ""
 	@if [ -n "$$ZSH_VERSION" ] || [ "$$SHELL" = "/bin/zsh" ]; then \
@@ -77,41 +69,6 @@ install-opencode-commands:
 		mv "$$command_file.tmp" "$$command_file"; \
 		echo "$$name → $$command_file"; \
 	done
-
-install-claude-style:
-	@mkdir -p "$(OUTPUT_STYLES_DIR)"
-	@for name in $(OUTPUT_STYLE_NAMES); do \
-		rm -rf "$(OUTPUT_STYLES_DIR)/$$name"; \
-		ln -s "$(CURDIR)/output-styles/$$name" "$(OUTPUT_STYLES_DIR)/$$name"; \
-		echo "$$name → $(OUTPUT_STYLES_DIR)/$$name"; \
-	done
-
-# /output-style selects per project; the settings key selects globally.
-	@if command -v jq >/dev/null 2>&1; then \
-		[ -s "$(CLAUDE_SETTINGS)" ] || echo '{}' > "$(CLAUDE_SETTINGS)"; \
-		jq --arg style "$(DEFAULT_OUTPUT_STYLE)" '.outputStyle = $$style' \
-			"$(CLAUDE_SETTINGS)" > "$(CLAUDE_SETTINGS).tmp" \
-			&& mv "$(CLAUDE_SETTINGS).tmp" "$(CLAUDE_SETTINGS)"; \
-		echo "outputStyle=$(DEFAULT_OUTPUT_STYLE) → $(CLAUDE_SETTINGS)"; \
-	else \
-		echo "jq not found; set \"outputStyle\": \"$(DEFAULT_OUTPUT_STYLE)\" in $(CLAUDE_SETTINGS) by hand"; \
-	fi
-
-# OpenCode uses instructions for styles. Leave JSONC untouched to retain comments.
-install-opencode-style:
-	@opencode_style="$(CURDIR)/output-styles/$(DEFAULT_STYLE_FILE)"; \
-	if ! command -v jq >/dev/null 2>&1; then \
-		echo "jq not found; add $$opencode_style to \"instructions\" in $(OPENCODE_CONFIG) by hand"; \
-	elif [ -s "$(OPENCODE_CONFIG)" ] && ! jq empty "$(OPENCODE_CONFIG)" >/dev/null 2>&1; then \
-		echo "$(OPENCODE_CONFIG) is not plain JSON; add $$opencode_style to \"instructions\" by hand"; \
-	else \
-		mkdir -p "$$(dirname "$(OPENCODE_CONFIG)")"; \
-		[ -s "$(OPENCODE_CONFIG)" ] || echo '{}' > "$(OPENCODE_CONFIG)"; \
-		jq --arg p "$$opencode_style" '.instructions = (((.instructions // []) - [$$p]) + [$$p])' \
-			"$(OPENCODE_CONFIG)" > "$(OPENCODE_CONFIG).tmp" \
-			&& mv "$(OPENCODE_CONFIG).tmp" "$(OPENCODE_CONFIG)"; \
-		echo "instructions += $(DEFAULT_STYLE_FILE) → $(OPENCODE_CONFIG)"; \
-	fi
 
 install-git:
 	@rm -f "$(HOME)/.gitignore"

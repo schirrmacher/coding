@@ -6,22 +6,11 @@ Personal dotfiles and Claude Code skills. Run `make` to install.
 make
 ```
 
-Symlinks skills, output styles, and gitignore, includes gitconfig. `user.email` stays local.
+Symlinks skills and gitignore, includes gitconfig. `user.email` stays local.
 Skills land in `~/.claude/skills` and `~/.agents/skills` (Codex and OpenCode). The installer keeps
 OpenCode from scanning the duplicate Claude links. Managed OpenCode command copies also land in
 `~/.config/opencode/commands`, making every skill visible in the default `/` autocomplete.
-OpenCode has no output styles, so `make` adds the same style file to its `instructions` list.
 Restart OpenCode after running `make` so it reloads the links.
-
-## Output Styles
-
-Symlinked into `~/.claude/output-styles/`. `make` also sets `outputStyle` in
-`~/.claude/settings.json` to `DEFAULT_OUTPUT_STYLE` (currently `Plain`), which
-applies in every project. `/output-style` overrides it for one project only.
-
-| Style | What it does |
-|---|---|
-| `Plain` | States what changed and why in project vocabulary. One fact per sentence, no filler, no unverifiable adjectives, no LLM sentence patterns. |
 
 ## Claude Code Skills
 
