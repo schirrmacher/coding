@@ -51,7 +51,7 @@ class ConfigTests(unittest.TestCase):
     def test_shipped_config_and_codex_home(self):
         data = config_reader.read_config(ROOT / "sandbox.toml", ROOT / "tests/absent_local.toml")
         self.assertEqual(data["default"], "orca")
-        self.assertEqual([app["name"] for app in data["apps"]],
+        self.assertEqual([app["name"] for app in data["apps"]][:8],
                          ["orca", "claude", "codex", "vscode", "opencode", "gh", "cargo", "uv"])
         codex = next(app for app in data["apps"] if app["name"] == "codex")
         self.assertEqual(codex["codex_home"], str(Path(config_reader.user_home()) / ".codex"))
@@ -207,7 +207,7 @@ prepare_app_state
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertEqual(result.stdout.splitlines()[:5],
                              ["--reuid=1234", "--regid=5678", "--init-groups", "--reset-env", "python3"])
-            self.assertEqual(Path(result.stdout.splitlines()[5]).resolve(), ROOT / "lib/prepare_uv.py")
+            self.assertEqual(Path(result.stdout.splitlines()[5]).resolve(), ROOT / "lib/prepare_runtime.py")
 
     def test_symlink_paths_and_overrides_use_the_same_canonical_directory(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -27,8 +27,9 @@ class GithubStateTests(unittest.TestCase):
             for app in profiles:
                 with self.subTest(app=app["name"]):
                     command = app["cmd"]
-                    self.assertIn(f"GH_CONFIG_DIR={directory}/.local/share/sandbox/gh", command)
-                    self.assertIn("GH_NO_UPDATE_NOTIFIER=1", command)
+                    environment = config_reader.command_environment(app)
+                    self.assertEqual(environment["GH_CONFIG_DIR"], f"{directory}/.local/share/sandbox/gh")
+                    self.assertEqual(environment["GH_NO_UPDATE_NOTIFIER"], "1")
                     self.assertIn(f"{directory}/.local/share/sandbox/gh", app["dir"]["state"])
                     self.assertTrue({"github.com", "api.github.com"} <= set(app["endpoints"]))
                     result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox_wrappers"))}

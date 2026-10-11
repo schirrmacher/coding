@@ -36,23 +36,21 @@ endpoints = [
 
 [[apps]]
 name = "codex"
-cmd = [
-    "/usr/bin/env",
-    "GH_CONFIG_DIR=${HOME}/.local/share/sandbox/gh",
-    "GH_NO_UPDATE_NOTIFIER=1",
-    "CARGO_HOME=${HOME}/.local/share/sandbox/cargo",
-    "RUSTUP_HOME=${HOME}/.rustup",
-    "RUSTUP_AUTO_INSTALL=0",
-    "CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse",
-    "UV_CACHE_DIR=${HOME}/.local/share/sandbox/uv/cache",
-    "UV_PYTHON_INSTALL_DIR=${HOME}/.local/share/sandbox/uv/python",
-    "UV_PYTHON_BIN_DIR=${HOME}/.local/share/sandbox/uv/python-bin",
-    "UV_TOOL_DIR=${HOME}/.local/share/sandbox/uv/tools",
-    "UV_TOOL_BIN_DIR=${HOME}/.local/share/sandbox/uv/bin",
-    "UV_NO_MODIFY_PATH=1",
-    "PATH=${HOME}/.cargo/bin:${HOME}/.local/share/sandbox/cargo/bin:${HOME}/.local/share/sandbox/runtimes/uv:${HOME}/.local/share/sandbox/uv/bin:${HOME}/.local/share/sandbox/uv/python-bin:/usr/local/bin:/usr/bin:/bin",
-    "${HOME}/.local/share/codex/current/bin/codex",
-]
+env.GH_CONFIG_DIR = "${HOME}/.local/share/sandbox/gh"
+env.GH_NO_UPDATE_NOTIFIER = "1"
+env.CARGO_HOME = "${HOME}/.local/share/sandbox/cargo"
+env.RUSTUP_HOME = "${HOME}/.rustup"
+env.RUSTUP_AUTO_INSTALL = "0"
+env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse"
+env.UV_CACHE_DIR = "${HOME}/.local/share/sandbox/uv/cache"
+env.UV_PYTHON_INSTALL_DIR = "${HOME}/.local/share/sandbox/uv/python"
+env.UV_PYTHON_BIN_DIR = "${HOME}/.local/share/sandbox/uv/python-bin"
+env.UV_TOOL_DIR = "${HOME}/.local/share/sandbox/uv/tools"
+env.UV_TOOL_BIN_DIR = "${HOME}/.local/share/sandbox/uv/bin"
+env.UV_NO_MODIFY_PATH = "1"
+env.PATH = "${HOME}/.cargo/bin:${HOME}/.local/share/sandbox/cargo/bin:${HOME}/.local/share/sandbox/runtimes/uv:${HOME}/.local/share/sandbox/uv/bin:${HOME}/.local/share/sandbox/uv/python-bin:${HOME}/.local/share/sandbox/runtimes/sigrid:/usr/local/bin:/usr/bin:/bin"
+sigrid = true
+cmd = ["${HOME}/.local/share/codex/current/bin/codex"]
 
 codex_home = "${HOME}/.codex"
 dir.read = [
@@ -62,6 +60,8 @@ dir.read = [
     "${HOME}/.cargo/bin",
     "${HOME}/.rustup",
     "${HOME}/.local/share/sandbox/runtimes/uv",
+    "${HOME}/.local/share/sigrid",
+    "${HOME}/.local/share/sandbox/runtimes/sigrid",
     "/usr/include",
     "/usr/libexec/gcc",
 ]
@@ -69,6 +69,7 @@ dir.state = [
     "${HOME}/.local/share/sandbox/gh",
     "${HOME}/.local/share/sandbox/cargo",
     "${HOME}/.local/share/sandbox/uv",
+    "${HOME}/.config/sigrid",
 ]
 endpoints = [
     "github.com",
@@ -86,18 +87,9 @@ endpoints = [
 
 [[apps]]
 name = "vscode"
+env.VSCODE_PORTABLE = "${HOME}/.local/share/sandbox/vscode"
 wrapper_name = "code"
-cmd = [
-    "/usr/bin/env",
-    "VSCODE_PORTABLE=${HOME}/.local/share/sandbox/vscode",
-    "/usr/bin/code",
-    "--wait",
-    "--no-sandbox",
-    "--user-data-dir",
-    "${HOME}/.local/share/sandbox/vscode/user-data",
-    "--extensions-dir",
-    "${HOME}/.local/share/sandbox/vscode/extensions",
-]
+cmd = ["/usr/bin/code", "--wait", "--no-sandbox", "--user-data-dir", "${HOME}/.local/share/sandbox/vscode/user-data", "--extensions-dir", "${HOME}/.local/share/sandbox/vscode/extensions"]
 gui = true
 launchers = [
     "com.microsoft.VSCode.desktop",
@@ -115,18 +107,17 @@ endpoints = [
 
 [[apps]]
 name = "opencode"
-cmd = [
-    "/usr/bin/env",
-    "GH_CONFIG_DIR=${HOME}/.local/share/sandbox/gh",
-    "GH_NO_UPDATE_NOTIFIER=1",
-    "OPENCODE_DISABLE_AUTOUPDATE=1",
-    "OPENCODE_DISABLE_MODELS_FETCH=1",
-    "OPENCODE_DISABLE_CLAUDE_CODE_SKILLS=1",
-    "${HOME}/.opencode/bin/opencode",
-]
+env.GH_CONFIG_DIR = "${HOME}/.local/share/sandbox/gh"
+env.GH_NO_UPDATE_NOTIFIER = "1"
+env.PATH = "${HOME}/.local/share/sandbox/runtimes/sigrid:/usr/local/bin:/usr/bin:/bin"
+env.OPENCODE_DISABLE_AUTOUPDATE = "1"
+env.OPENCODE_DISABLE_MODELS_FETCH = "1"
+env.OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
+sigrid = true
+cmd = ["${HOME}/.opencode/bin/opencode"]
 dir.write = ["${HOME}/.config/opencode", "${HOME}/.local/share/opencode", "${HOME}/.local/state/opencode", "${HOME}/.cache/opencode"]
-dir.read = ["${HOME}/.opencode", "${HOME}/.agents"]
-dir.state = ["${HOME}/.local/share/sandbox/gh"]
+dir.read = ["${HOME}/.opencode", "${HOME}/.agents", "${HOME}/.local/share/sigrid", "${HOME}/.local/share/sandbox/runtimes/sigrid"]
+dir.state = ["${HOME}/.local/share/sandbox/gh", "${HOME}/.config/sigrid"]
 endpoints = [
     "github.com",
     "api.github.com",
@@ -137,26 +128,20 @@ endpoints = [
 
 [[apps]]
 name = "gh"
-cmd = [
-    "/usr/bin/env",
-    "GH_CONFIG_DIR=${HOME}/.local/share/sandbox/gh",
-    "GH_NO_UPDATE_NOTIFIER=1",
-    "/usr/bin/gh",
-]
+env.GH_CONFIG_DIR = "${HOME}/.local/share/sandbox/gh"
+env.GH_NO_UPDATE_NOTIFIER = "1"
+cmd = ["/usr/bin/gh"]
 dir.state = ["${HOME}/.local/share/sandbox/gh"]
 endpoints = ["github.com", "api.github.com"]
 
 [[apps]]
 name = "cargo"
-cmd = [
-    "/usr/bin/env",
-    "CARGO_HOME=${HOME}/.local/share/sandbox/cargo",
-    "RUSTUP_HOME=${HOME}/.rustup",
-    "RUSTUP_AUTO_INSTALL=0",
-    "CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse",
-    "PATH=${HOME}/.cargo/bin:${HOME}/.local/share/sandbox/cargo/bin:/usr/local/bin:/usr/bin:/bin",
-    "${HOME}/.cargo/bin/cargo",
-]
+env.CARGO_HOME = "${HOME}/.local/share/sandbox/cargo"
+env.RUSTUP_HOME = "${HOME}/.rustup"
+env.RUSTUP_AUTO_INSTALL = "0"
+env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse"
+env.PATH = "${HOME}/.cargo/bin:${HOME}/.local/share/sandbox/cargo/bin:/usr/local/bin:/usr/bin:/bin"
+cmd = ["${HOME}/.cargo/bin/cargo"]
 
 dir.state = ["${HOME}/.local/share/sandbox/cargo"]
 dir.read = ["${HOME}/.cargo/bin", "${HOME}/.rustup", "/usr/include", "/usr/libexec/gcc"]
@@ -164,20 +149,128 @@ endpoints = ["index.crates.io", "static.crates.io", "crates.io"]
 
 [[apps]]
 name = "uv"
-cmd = [
-    "/usr/bin/env",
-    "UV_CACHE_DIR=${HOME}/.local/share/sandbox/uv/cache",
-    "UV_PYTHON_INSTALL_DIR=${HOME}/.local/share/sandbox/uv/python",
-    "UV_PYTHON_BIN_DIR=${HOME}/.local/share/sandbox/uv/python-bin",
-    "UV_TOOL_DIR=${HOME}/.local/share/sandbox/uv/tools",
-    "UV_TOOL_BIN_DIR=${HOME}/.local/share/sandbox/uv/bin",
-    "XDG_CONFIG_HOME=${HOME}/.local/share/sandbox/uv/config",
-    "XDG_DATA_HOME=${HOME}/.local/share/sandbox/uv/data",
-    "UV_NO_MODIFY_PATH=1",
-    "PATH=${HOME}/.local/share/sandbox/runtimes/uv:${HOME}/.local/share/sandbox/uv/bin:${HOME}/.local/share/sandbox/uv/python-bin:/usr/local/bin:/usr/bin:/bin",
-    "${HOME}/.local/share/sandbox/runtimes/uv/uv",
-]
+env.UV_CACHE_DIR = "${HOME}/.local/share/sandbox/uv/cache"
+env.UV_PYTHON_INSTALL_DIR = "${HOME}/.local/share/sandbox/uv/python"
+env.UV_PYTHON_BIN_DIR = "${HOME}/.local/share/sandbox/uv/python-bin"
+env.UV_TOOL_DIR = "${HOME}/.local/share/sandbox/uv/tools"
+env.UV_TOOL_BIN_DIR = "${HOME}/.local/share/sandbox/uv/bin"
+env.XDG_CONFIG_HOME = "${HOME}/.local/share/sandbox/uv/config"
+env.XDG_DATA_HOME = "${HOME}/.local/share/sandbox/uv/data"
+env.UV_NO_MODIFY_PATH = "1"
+env.PATH = "${HOME}/.local/share/sandbox/runtimes/uv:${HOME}/.local/share/sandbox/uv/bin:${HOME}/.local/share/sandbox/uv/python-bin:/usr/local/bin:/usr/bin:/bin"
+cmd = ["${HOME}/.local/share/sandbox/runtimes/uv/uv"]
 
 dir.state = ["${HOME}/.local/share/sandbox/uv"]
 dir.read = ["${HOME}/.local/share/sandbox/runtimes/uv"]
 endpoints = ["pypi.org", "files.pythonhosted.org", "github.com", "release-assets.githubusercontent.com"]
+
+[[apps]]
+name = "zed"
+desktop.template = "${HOME}/.local/zed.app/share/applications/{id}"
+desktop.icon = "dev.zed.Zed"
+desktop.window_class = "dev.zed.Zed"
+env.PATH = "${HOME}/.local/zed.app/bin:/usr/local/bin:/usr/bin:/bin"
+cmd = ["${HOME}/.local/zed.app/bin/zed", "--foreground"]
+gui = true
+launchers = ["dev.zed.Zed.desktop"]
+dir.read = ["${HOME}/.local/zed.app"]
+dir.state = ["${HOME}/.config/zed", "${HOME}/.local/share/zed", "${HOME}/.cache/zed"]
+endpoints = []
+
+[[apps]]
+name = "herdr"
+desktop.enabled = true
+desktop.name = "Herdr"
+desktop.icon = "herdr"
+desktop.terminal = false
+desktop.id = "dev.herdr.Herdr.desktop"
+desktop.terminal_app_id = "dev.herdr.Herdr"
+pty = true
+env.HERDR_CONFIG_PATH = "${HOME}/.local/share/sandbox/herdr/config/herdr/config.toml"
+env.HERDR_SOCKET_PATH = "/tmp/herdr.sock"
+env.CODEX_HOME = "${HOME}/.local/share/sandbox/herdr/codex"
+env.CLAUDE_CONFIG_DIR = "${HOME}/.local/share/sandbox/herdr/claude"
+env.XDG_CONFIG_HOME = "${HOME}/.local/share/sandbox/herdr/config"
+env.XDG_DATA_HOME = "${HOME}/.local/share/sandbox/herdr/data"
+env.XDG_CACHE_HOME = "${HOME}/.local/share/sandbox/herdr/cache"
+env.XDG_STATE_HOME = "${HOME}/.local/share/sandbox/herdr/state"
+env.GH_CONFIG_DIR = "${HOME}/.local/share/sandbox/herdr/gh"
+env.GH_NO_UPDATE_NOTIFIER = "1"
+env.CARGO_HOME = "${HOME}/.local/share/sandbox/herdr/cargo"
+env.RUSTUP_HOME = "${HOME}/.rustup"
+env.RUSTUP_AUTO_INSTALL = "0"
+env.CARGO_REGISTRIES_CRATES_IO_PROTOCOL = "sparse"
+env.UV_CACHE_DIR = "${HOME}/.local/share/sandbox/herdr/uv/cache"
+env.UV_PYTHON_INSTALL_DIR = "${HOME}/.local/share/sandbox/herdr/uv/python"
+env.UV_PYTHON_BIN_DIR = "${HOME}/.local/share/sandbox/herdr/uv/python-bin"
+env.UV_TOOL_DIR = "${HOME}/.local/share/sandbox/herdr/uv/tools"
+env.UV_TOOL_BIN_DIR = "${HOME}/.local/share/sandbox/herdr/uv/bin"
+env.UV_NO_MODIFY_PATH = "1"
+env.OPENCODE_DISABLE_AUTOUPDATE = "1"
+env.OPENCODE_DISABLE_MODELS_FETCH = "1"
+env.OPENCODE_DISABLE_CLAUDE_CODE_SKILLS = "1"
+env.SHELL = "/bin/bash"
+env.PATH = "${HOME}/.local/share/sandbox/herdr/bin:${HOME}/.cargo/bin:${HOME}/.local/share/sandbox/herdr/cargo/bin:${HOME}/.local/share/sandbox/runtimes/uv:${HOME}/.local/share/sandbox/herdr/uv/bin:${HOME}/.local/share/sandbox/herdr/uv/python-bin:/usr/local/bin:/usr/bin:/bin"
+cmd = ["${HOME}/.local/share/herdr/bin/herdr"]
+dir.read = ["${HOME}/.local/share/herdr", "${HOME}/.local/share/codex", "${HOME}/.opencode", "${HOME}/.agents", "${HOME}/.orca/agent-hooks", "${HOME}/.cargo/bin", "${HOME}/.rustup", "${HOME}/.local/share/sandbox/runtimes/uv", "/usr/include", "/usr/libexec/gcc"]
+dir.state = ["${HOME}/.local/share/sandbox/herdr"]
+endpoints = [
+    "api.anthropic.com",
+    "claude.ai",
+    "claude.com",
+    "platform.claude.com",
+    "github.com",
+    "api.github.com",
+    "api.openai.com",
+    "chatgpt.com",
+    "auth.openai.com",
+    "index.crates.io",
+    "static.crates.io",
+    "crates.io",
+    "pypi.org",
+    "files.pythonhosted.org",
+    "release-assets.githubusercontent.com",
+    "cortecs.ai",
+    "api.cortecs.ai",
+    "api.exa.ai",
+]
+
+[[apps]]
+name = "photocraft"
+desktop.enabled = true
+desktop.id = "ai.storyteller.photocraft.desktop"
+desktop.name = "PhotoCraft"
+desktop.icon = "${HOME}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.photocraft.png"
+desktop.window_class = "photocraft"
+desktop.terminal = false
+env.PHOTOCRAFT_NO_DESKTOP_INTEGRATION = "1"
+cmd = ["${HOME}/Applications/photocraft-linux.AppImage"]
+gui = true
+dir.write = ["${HOME}"]
+endpoints = []
+
+[[apps]]
+name = "vectorcraft"
+desktop.enabled = true
+desktop.id = "ai.storyteller.vectorcraft.desktop"
+desktop.name = "VectorCraft"
+desktop.icon = "${HOME}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.vectorcraft.png"
+desktop.window_class = "ai.storyteller.vectorcraft"
+desktop.terminal = false
+cmd = ["${HOME}/Applications/vectorcraft-linux.AppImage"]
+gui = true
+dir.write = ["${HOME}"]
+endpoints = []
+
+[[apps]]
+name = "designcraft"
+desktop.enabled = true
+desktop.id = "ai.storyteller.designcraft.desktop"
+desktop.name = "DesignCraft"
+desktop.icon = "${HOME}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.designcraft.png"
+desktop.window_class = "ai.storyteller.designcraft"
+desktop.terminal = false
+cmd = ["${HOME}/Applications/designcraft-linux.AppImage"]
+gui = true
+dir.write = ["${HOME}"]
+endpoints = []

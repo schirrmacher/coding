@@ -82,6 +82,9 @@ run_payload
             arguments = result.stdout.rstrip("\0").split("\0")
             self.assertEqual(arguments[:3], ["netns", "exec", "sandbox-demo"])
             self.assertLess(arguments.index("--clearenv"), arguments.index("DISPLAY"))
+            self.assertNotIn("--unshare-ipc", arguments)
+            device_index = arguments.index("--dev-bind-try")
+            self.assertEqual(arguments[device_index + 1:device_index + 3], ["/dev/dri"] * 2)
             display_index = arguments.index("DISPLAY")
             self.assertEqual(arguments[display_index + 1], ":test")
             runtime_index = arguments.index("XDG_RUNTIME_DIR")
@@ -107,6 +110,25 @@ run_payload
                              ["--ro-bind", str(config), str(config)])
             self.assertGreater(config_index, arguments.index("--bind-try"))
 
+
+    def test_only_x11_gui_apps_share_the_display_servers_ipc_namespace(self):
+        for gui, display, isolated in ((True, ":0", False), (True, "", True), (False, ":0", True)):
+            with self.subTest(gui=gui, display=display):
+                with tempfile.TemporaryDirectory() as directory:
+                    config = Path(directory) / "config.toml"
+                    write_config(config, {"apps": [{"name": "demo", "gui": gui, "endpoints": []}]})
+                    script = f'''CONFIG={shlex.quote(str(config))}; APP=demo
+SUDO_UID=$(id -u); HOME_DIR={shlex.quote(directory)}
+DISPLAY={shlex.quote(display)}; ENV_ARGS=()
+canonical_config_path() {{ echo "$CONFIG"; }}
+config_paths() {{ echo "$CONFIG"; }}
+app_readable_directories() {{ :; }}
+prepare_mounts_and_environment
+printf '%s' "${{IPC_ARGS[*]}}"
+'''
+                    result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox")), script)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "--unshare-ipc" if isolated else "")
 
     def test_config_mount_survives_directory_overrides_for_every_app(self):
         with tempfile.TemporaryDirectory() as directory:

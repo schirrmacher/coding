@@ -41,7 +41,15 @@ app_gui_rules "$3"
                     if gui:
                         self.assertIn("<abstractions/X>", result.stdout)
                         self.assertIn("<abstractions/fonts>", result.stdout)
+                        self.assertIn("/etc/{vulkan,glvnd}/{,**} r,", result.stdout)
+                        self.assertIn("/usr/share/{vulkan,glvnd}/{,**} r,", result.stdout)
                         self.assertIn("/newroot/tmp/.X11-unix/ rw", result.stdout)
+                        self.assertIn("/sys/devices/pci*/{,**} r,", result.stdout)
+                        self.assertIn("peer=(name=org.a11y.Bus)", result.stdout)
+                        self.assertIn("interface=org.freedesktop.portal.FileChooser", result.stdout)
+                        self.assertIn("member={OpenFile,SaveFile,SaveFiles}", result.stdout)
+                        self.assertIn("interface=org.freedesktop.portal.Request member=Response", result.stdout)
+                        self.assertNotIn("interface=org.freedesktop.portal.OpenURI", result.stdout)
                     else:
                         self.assertEqual(result.stdout, "")
 
@@ -115,13 +123,19 @@ write_desktop_entry vscode
             commands = [line for line in (generated_main + generated_urls).splitlines() if line.startswith("Exec=")]
             self.assertEqual(len(commands), 3)
             for command in commands:
-                self.assertTrue(command.startswith('Exec="sudo" "-n" '), command)
-                self.assertIn('"--app" "vscode"', command)
-                self.assertIn('"--user-data-dir" "/separate profile"', command)
+                self.assertTrue(command.startswith(f'Exec="{Path.home()}/.local/bin/vscode" '), command)
             self.assertTrue(commands[0].endswith("%F"))
             self.assertTrue(commands[1].endswith("--new-window %F"))
             self.assertTrue(commands[2].endswith("--open-url %U"))
             self.assertEqual((system / "com.microsoft.VSCode.desktop").read_text(), main)
+
+    def test_renderer_removes_display_suffixes_and_preserves_actions(self):
+        source = ("[Desktop Entry]\nName=Zed (sandboxed)\nName[de]=Zed (sandboxed)\n"
+                  "Exec=zed %F\n[Desktop Action new]\nName=New Window\nExec=zed --new %F\n")
+        rendered = desktop.render_desktop_entry(source, '"sandbox" ')
+        self.assertNotIn("(sandboxed)", rendered)
+        self.assertIn("Name[de]=Zed\n", rendered)
+        self.assertIn('Exec="sandbox" --new %F', rendered)
 
     def test_desktop_backup_survives_regeneration_and_conflicts_are_rejected(self):
         for conflicting_backup in (False, True):
@@ -174,6 +188,12 @@ remove_stale "$2" ''
 
     def test_launcher_metadata_rejects_directory_paths_and_name_collisions(self):
         invalid_apps = (
+            [{"name": "vectorcraft", "cmd": ["vectorcraft"], "gui": True},
+             {"name": "other", "cmd": ["other"], "gui": True,
+              "launchers": ["ai.storyteller.vectorcraft.desktop"]}],
+            [{"name": "herdr", "cmd": ["herdr"]},
+             {"name": "other", "cmd": ["other"], "gui": True,
+              "launchers": ["dev.herdr.Herdr.desktop"]}],
             [{"name": "vscode", "cmd": ["/usr/bin/code"], "wrapper_name": "../code"}],
             [{"name": "vscode", "cmd": ["/usr/bin/code"], "launchers": ["../code.desktop"]}],
             [{"name": "first", "cmd": ["tool"], "wrapper_name": "code"},
