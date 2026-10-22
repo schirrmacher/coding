@@ -19,6 +19,11 @@ source "${SANDBOX_ROOT}/lib/install/files.sh"
 source "${SANDBOX_ROOT}/lib/install/prepare.sh"
 
 main() {
+	if [[ $(uname -s) != Linux ]]; then
+		echo "Skipping sandbox wrappers: Linux required"
+		return 0
+	fi
+
 	read_config || exit 1
 	[[ -f $CONFIG ]] || {
 		echo "config not found: $CONFIG" >&2

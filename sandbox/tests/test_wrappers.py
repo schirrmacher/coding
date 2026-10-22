@@ -14,6 +14,41 @@ def bash(functions, command):
 
 
 class WrapperTests(unittest.TestCase):
+    def test_installation_skips_non_linux_before_loading_config(self):
+        source = "source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers"))
+        script = '''
+uname() { echo Darwin; }
+read_config() { echo 'unexpected configuration read' >&2; return 1; }
+prepare_installation() { echo 'unexpected runtime preparation' >&2; return 1; }
+generate_launchers() { echo 'unexpected launcher write' >&2; return 1; }
+CONFIG=/nonexistent/sandbox.toml
+main
+'''
+        result = bash(source, script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "Skipping sandbox wrappers: Linux required\n")
+        self.assertEqual(result.stderr, "")
+
+    def test_linux_installation_reaches_existing_flow(self):
+        source = "source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers"))
+        script = '''
+uname() { echo Linux; }
+CONFIG="$SANDBOX_ROOT/sandbox.toml"
+read_config() { echo read_config; }
+validate_launcher_config() { echo validate_launcher_config; }
+prepare_installation() { echo prepare_installation; }
+generate_launchers() { echo generate_launchers; }
+remove_stale_launchers() { echo remove_stale_launchers; }
+install_host_integration() { echo install_host_integration; }
+main
+'''
+        result = bash(source, script)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), [
+            "read_config", "validate_launcher_config", "prepare_installation",
+            "generate_launchers", "remove_stale_launchers", "install_host_integration",
+        ])
+
     def test_wrapper_preserves_command_and_forwarded_arguments(self):
         functions = "source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers"))
         with tempfile.TemporaryDirectory() as directory:
