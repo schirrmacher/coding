@@ -29,17 +29,17 @@ ASSETS = {
         "https://github.com/herdrdev/herdr/releases/download/v0.9.3/herdr-linux-x86_64",
         "18a8dc65f1c2fa485884344356dea1cfd911c6f06cf46fa78e193f4087f4dba7",
     ),
-    "photocraft-0.7.0-linux-x86_64.AppImage": (
-        "https://github.com/storytold/photocraft/releases/download/v0.7.0/photocraft-0.7.0-linux-x86_64.AppImage",
-        "87ebce36bcdf6b31d16a9ca22ce29f9ad8db68185e4d98118800d1c2de78ac42",
+    "photocraft-0.12.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/photocraft/releases/download/v0.12.0/photocraft-0.12.0-linux-x86_64.AppImage",
+        "da821339afce93b72991c7900a28f589eb06a885e0ab59ea702ddec9a280ac66",
     ),
-    "vectorcraft-0.9.0-linux-x86_64.AppImage": (
-        "https://github.com/storytold/vectorcraft/releases/download/v0.9.0/vectorcraft-0.9.0-linux-x86_64.AppImage",
-        "77eefa2c1ca7681e4b9aede638db314636da8d504aea107d48fb3367b6f61238",
+    "vectorcraft-0.14.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/vectorcraft/releases/download/v0.14.0/vectorcraft-0.14.0-linux-x86_64.AppImage",
+        "89757a1e806164b95eae2cef9bdf98bf1a03ef10a9b2cc8a50bd05c54b74c792",
     ),
-    "designcraft-0.6.0-linux-x86_64.AppImage": (
-        "https://github.com/storytold/designcraft/releases/download/v0.6.0/designcraft-0.6.0-linux-x86_64.AppImage",
-        "fb62e7e7a9adee2fd7f400b2ba26093b96a803470a7d8d476e39196f05c4c034",
+    "designcraft-0.11.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/designcraft/releases/download/v0.11.0/designcraft-0.11.0-linux-x86_64.AppImage",
+        "7e246a6f793719c9818e9d1497efec5e22308c91e42ff3b1fe5f3667ae3a6b8c",
     ),
 }
 
