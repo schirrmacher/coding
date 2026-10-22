@@ -124,6 +124,7 @@ endpoints = [
     "cortecs.ai",
     "api.cortecs.ai",
     "api.exa.ai",
+    "api.mistral.ai",
 ]
 
 [[apps]]
@@ -233,6 +234,7 @@ endpoints = [
     "cortecs.ai",
     "api.cortecs.ai",
     "api.exa.ai",
+    "api.mistral.ai",
 ]
 
 [[apps]]
@@ -274,3 +276,49 @@ cmd = ["${HOME}/Applications/designcraft-linux.AppImage"]
 gui = true
 dir.write = ["${HOME}"]
 endpoints = []
+
+[[apps]]
+name = "vibe"
+browser = true
+env.BROWSER = "${HOME}/.local/share/sandbox/runtimes/browser/xdg-open"
+env.VIBE_HOME = "${HOME}/.vibe"
+env.GH_CONFIG_DIR = "${HOME}/.local/share/sandbox/gh"
+env.GH_NO_UPDATE_NOTIFIER = "1"
+env.PATH = "${HOME}/.local/share/sandbox/runtimes/browser:${HOME}/.local/share/sandbox/runtimes/sigrid:/usr/local/bin:/usr/bin:/bin"
+sigrid = true
+cmd = ["${HOME}/.local/share/mistral-vibe/bin/vibe"]
+dir.read = ["${HOME}/.local/share/sandbox/runtimes/browser", "${HOME}/.local/share/mistral-vibe", "${HOME}/.agents", "${HOME}/.local/share/sigrid", "${HOME}/.local/share/sandbox/runtimes/sigrid"]
+dir.state = ["${HOME}/.vibe", "${HOME}/.local/share/sandbox/gh", "${HOME}/.config/sigrid"]
+endpoints = [
+    "github.com",
+    "api.github.com",
+    "cortecs.ai",
+    "api.cortecs.ai",
+    "api.exa.ai",
+    "api.mistral.ai",
+    "console.mistral.ai",
+    "chat.mistral.ai",
+]
+
+[[apps]]
+name = "vibe-acp"
+browser = true
+env.BROWSER = "${HOME}/.local/share/sandbox/runtimes/browser/xdg-open"
+env.VIBE_HOME = "${HOME}/.vibe"
+env.GH_CONFIG_DIR = "${HOME}/.local/share/sandbox/gh"
+env.GH_NO_UPDATE_NOTIFIER = "1"
+env.PATH = "${HOME}/.local/share/sandbox/runtimes/browser:${HOME}/.local/share/sandbox/runtimes/sigrid:/usr/local/bin:/usr/bin:/bin"
+sigrid = true
+cmd = ["${HOME}/.local/share/mistral-vibe/bin/vibe-acp"]
+dir.read = ["${HOME}/.local/share/sandbox/runtimes/browser", "${HOME}/.local/share/mistral-vibe", "${HOME}/.agents", "${HOME}/.local/share/sigrid", "${HOME}/.local/share/sandbox/runtimes/sigrid"]
+dir.state = ["${HOME}/.vibe", "${HOME}/.local/share/sandbox/gh", "${HOME}/.config/sigrid"]
+endpoints = [
+    "github.com",
+    "api.github.com",
+    "cortecs.ai",
+    "api.cortecs.ai",
+    "api.exa.ai",
+    "api.mistral.ai",
+    "console.mistral.ai",
+    "chat.mistral.ai",
+]

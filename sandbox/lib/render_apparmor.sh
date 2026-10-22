@@ -30,6 +30,21 @@ app_sigrid_rules() {
 EOF
 }
 
+app_browser_rules() {
+	config_query -e --arg app "$1" 'any(.apps[]; .name == $app and .browser == true)' >/dev/null || return 0
+	cat <<'EOF'
+  #include <abstractions/dbus-session-strict>
+  dbus (send) bus=session
+       path=/org/freedesktop/portal/desktop
+       interface=org.freedesktop.portal.OpenURI member=OpenURI
+       peer=(name=org.freedesktop.portal.Desktop),
+  dbus (send) bus=session
+       path=/org/freedesktop/portal/desktop
+       interface=org.freedesktop.DBus.Introspectable member=Introspect
+       peer=(name=org.freedesktop.portal.Desktop),
+EOF
+}
+
 app_pty_rules() {
 	[[ $(policy_query pty "$1") == true ]] || return 0
 	cat <<'EOF'

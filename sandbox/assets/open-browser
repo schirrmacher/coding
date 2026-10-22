@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+[[ $# == 1 && ( $1 == https://* || $1 == http://* ) ]] || {
+    echo "Usage: xdg-open HTTP_URL" >&2
+    exit 2
+}
+
+exec /usr/bin/gdbus call --session --dest org.freedesktop.portal.Desktop \
+    --object-path /org/freedesktop/portal/desktop \
+    --method org.freedesktop.portal.OpenURI.OpenURI '' "$1" '{}' >/dev/null

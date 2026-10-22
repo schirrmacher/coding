@@ -92,7 +92,7 @@ def merge_apps(data, local, home):
     if not isinstance(entries, list):
         raise ValueError("apps must be an array of tables")
     apps = {app["name"]: app for app in data.get("apps", [])}
-    allowed = {"name", "dir", "endpoints", "cmd", "gui", "wrapper_name", "launchers", "codex_home", "sigrid", "env", "desktop", "pty"}
+    allowed = {"name", "dir", "endpoints", "cmd", "gui", "wrapper_name", "launchers", "codex_home", "sigrid", "env", "desktop", "pty", "browser"}
     seen = set()
     for entry in entries:
         if not isinstance(entry, dict) or entry.keys() - allowed:

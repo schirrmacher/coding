@@ -9,7 +9,7 @@ DESKTOP_ID = r"[A-Za-z0-9][A-Za-z0-9_.-]*\.desktop"
 def validate_app_fields(app):
     if not isinstance(app, dict):
         raise ValueError("apps must be an array of tables")
-    for field in ("gui", "sigrid", "pty"):
+    for field in ("gui", "sigrid", "pty", "browser"):
         if field in app and not isinstance(app[field], bool):
             raise ValueError(f"{field} must be true or false")
     if "cmd" in app and (not isinstance(app["cmd"], list) or not app["cmd"]

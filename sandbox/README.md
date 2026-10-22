@@ -33,7 +33,7 @@ Example `~/.config/sandbox/local.toml`:
 Local entries match publicly declared apps by `name`. `dir.read`, `dir.write`,
 `dir.state`, and `endpoints` append to the public lists; duplicates are removed.
 `env` and `desktop` merge by key. `cmd`, `gui`, `pty`, `wrapper_name`, `launchers`,
-`codex_home`, and `sigrid` replace public values
+`codex_home`, `sigrid`, and `browser` replace public values
 when supplied. Omitted settings inherit public values. Global settings remain
 public-only. Local read/write directories must exist; state directories are
 created during setup.
@@ -72,6 +72,19 @@ as the project command:
 ```sh
 sigrid_exports="$(sigrid)" && eval "$sigrid_exports" && ./run-project.sh
 ```
+
+## Mistral Vibe
+
+`vibe` and `vibe-acp` run the official installation under
+`~/.local/share/mistral-vibe/bin` through sandbox wrappers. Both share private
+configuration and credentials in `~/.vibe`, OpenCode's supporting tool access,
+and the Mistral API, console, and chat endpoints. Project grants belong in
+`~/.config/sandbox/local.toml`. Run `vibe --setup` to authenticate.
+
+Both Vibe entries enable `browser = true` and use the managed `xdg-open`
+runtime through `BROWSER` and `PATH`. It opens HTTP URLs in the host browser
+through the desktop portal; browser profiles remain masked. This requires a
+running desktop session and does not grant display or file chooser access.
 
 ## Desktop apps
 
