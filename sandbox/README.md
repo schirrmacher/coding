@@ -99,7 +99,7 @@ sandbox/tests/test_sandbox.sh --installed --app zed --app herdr --app photocraft
 App definitions belong in `sandbox.toml`; machine-specific grants belong in
 `~/.config/sandbox/local.toml`. The installer does not edit either configuration.
 It verifies SHA-256 digests for Zed v1.23.2, its non-setuid bubblewrap helper,
-Herdr v0.9.3, PhotoCraft v0.7.0, VectorCraft v0.9.0, and DesignCraft v0.6.0.
+Herdr v0.9.3, PhotoCraft v0.12.0, VectorCraft v0.14.0, and DesignCraft v0.11.0.
 Downloads can be reused with `python3 sandbox/lib/install_apps.py
 --download-dir /path/to/downloads`, followed by `make install-sandbox`.
 
