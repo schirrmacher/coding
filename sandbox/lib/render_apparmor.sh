@@ -87,10 +87,10 @@ app_gui_rules() {
        path=/org/freedesktop/portal/desktop/request/**
        interface=org.freedesktop.portal.Request member=Close
        peer=(name=org.freedesktop.portal.Desktop),
+  # Portal signals use the sender's unique bus name, not its public service name.
   dbus (receive) bus=session
        path=/org/freedesktop/portal/desktop/request/**
-       interface=org.freedesktop.portal.Request member=Response
-       peer=(name=org.freedesktop.portal.Desktop),
+       interface=org.freedesktop.portal.Request member=Response,
   /proc/ r,
   owner /run/user/*/ r,
   # Graphics loaders discover drivers through manifests outside library directories.

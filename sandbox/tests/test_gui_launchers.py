@@ -49,6 +49,9 @@ app_gui_rules "$3"
                         self.assertIn("interface=org.freedesktop.portal.FileChooser", result.stdout)
                         self.assertIn("member={OpenFile,SaveFile,SaveFiles}", result.stdout)
                         self.assertIn("interface=org.freedesktop.portal.Request member=Response", result.stdout)
+                        response_rule = result.stdout.split("dbus (receive) bus=session", 1)[1].split(",", 1)[0]
+                        self.assertIn("path=/org/freedesktop/portal/desktop/request/**", response_rule)
+                        self.assertNotIn("peer=", response_rule)
                         self.assertNotIn("interface=org.freedesktop.portal.OpenURI", result.stdout)
                     else:
                         self.assertEqual(result.stdout, "")
