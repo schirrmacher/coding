@@ -75,7 +75,7 @@ prepare_mounts_and_environment() {
 		READ_ARGS+=(--ro-bind "$directory" "$directory")
 	done < <(app_readable_directories "$APP")
 
-	if config_query -e --arg app "$APP" 'any(.apps[]; .name == $app and .sigrid == true)' >/dev/null; then
+	if config_query -e --arg app "$APP" 'any(.apps[]; .name == $app and (.sigrid == true or .browser == true))' >/dev/null; then
 		build_sigrid_args "/run/user/$SUDO_UID/bus" || return 1
 	fi
 	build_mask_args "$HOME_DIR"
@@ -84,7 +84,7 @@ prepare_mounts_and_environment() {
 build_sigrid_args() {
 	local bus=$1
 	[[ -S $bus ]] || {
-		echo "SIGRID requires the desktop session bus at $bus" >&2
+		echo "SIGRID or browser access requires the desktop session bus at $bus" >&2
 		return 1
 	}
 	READ_ARGS+=(--ro-bind "$bus" "$bus")

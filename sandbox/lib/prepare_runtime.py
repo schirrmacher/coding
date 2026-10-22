@@ -38,6 +38,11 @@ def prepare_runtime(data, home):
             Path(directory).mkdir(parents=True, exist_ok=True)
     if any(app.get("sigrid", False) for app in data["apps"]):
         prepare_sigrid(home)
+    if any(app.get("browser", False) for app in data["apps"]):
+        browser = home / ".local/share/sandbox/runtimes/browser/xdg-open"
+        browser.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(assets / "open-browser", browser)
+        browser.chmod(0o755)
     executables = {command_executable(app.get("cmd", [])) for app in data["apps"]}
     if str(home / ".local/zed.app/bin/zed") in executables:
         prepare_zed(home, home / ".local/zed.app")

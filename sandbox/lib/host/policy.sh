@@ -9,7 +9,7 @@ install_apparmor() {
 	local app rules gui_rules profile_path staging
 	staging=$(mktemp -d) || return 1
 	for app in "${APPS[@]}"; do
-		rules=$(app_file_rules "$app" "$DEFAULT_PROJECT_DIRECTORY" && app_sigrid_rules "$app")
+		rules=$(app_file_rules "$app" "$DEFAULT_PROJECT_DIRECTORY" && app_sigrid_rules "$app" && app_browser_rules "$app")
 		gui_rules=$(app_gui_rules "$app")
 		gui_rules+=$'\n'$(app_pty_rules "$app")
 		profile_path="$staging/sandbox-$app"

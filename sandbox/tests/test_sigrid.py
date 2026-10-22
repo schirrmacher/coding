@@ -87,4 +87,4 @@ READ_ARGS=(); APP_ENV_ARGS=()
 build_sigrid_args {shlex.quote(str(Path(directory) / "missing-bus"))}
 ''')
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("SIGRID requires the desktop session bus", result.stderr)
+            self.assertIn("SIGRID or browser access requires the desktop session bus", result.stderr)
