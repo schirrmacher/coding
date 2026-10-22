@@ -24,6 +24,7 @@ Restart OpenCode after running `make` so it reloads the links.
 | `/deepcopy` | Port a reference codebase into this project, tests-first |
 | `/deepspec` | Implement a specification (RFC/standard) into this project, conformance-first |
 | `/commit-name` | Generate a short commit message from current changes |
+| `/chunk [n]` | Split unstaged changes into balanced, dependency-ordered commits with passing tests |
 | `/mr-summary` | Generate a concise merge request summary with examples |
 | `/handover` | Create a handover doc for another agent to pick up work |
 | `/shorten` | Compress a file, pasted text, or prior context — drops what the reader can derive. Levels: `tight` (nothing lost), default, `core` |
