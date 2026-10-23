@@ -46,6 +46,8 @@ profile sandbox-@SANDBOX_APP@ flags=(attach_disconnected,mediate_deleted) {
   # bwrap creates these devices in its staged tmpfs, not host devtmpfs.
   /{,newroot/}dev/** rw,
 
+  @{HOME}/.gitconfig r,
+
   deny @{HOME}/.ssh/          r,
   deny @{HOME}/.ssh/**        rwklmx,
   deny @{HOME}/.gnupg/        r,
