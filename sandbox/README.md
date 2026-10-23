@@ -93,48 +93,27 @@ Run these commands from a normal host terminal, outside the sandbox:
 ```sh
 make install-apps
 sudo sandbox up
-sandbox/tests/test_sandbox.sh --installed --app zed --app herdr --app photocraft --app vectorcraft --app designcraft
+sandbox/tests/test_sandbox.sh --installed --app photocraft --app vectorcraft --app designcraft
 ```
 
 App definitions belong in `sandbox.toml`; machine-specific grants belong in
 `~/.config/sandbox/local.toml`. The installer does not edit either configuration.
-It verifies SHA-256 digests for Zed v1.23.2, its non-setuid bubblewrap helper,
-Herdr v0.9.3, PhotoCraft v0.12.0, VectorCraft v0.14.0, and DesignCraft v0.11.0.
+It verifies SHA-256 digests for PhotoCraft v0.12.0, VectorCraft v0.14.0, and DesignCraft v0.11.0.
 Downloads can be reused with `python3 sandbox/lib/install_apps.py
 --download-dir /path/to/downloads`, followed by `make install-sandbox`.
 
-Zed runs through the `zed` wrapper and its desktop launcher. Its empty
-`endpoints = []` means offline: bubblewrap creates a private network namespace
-with only loopback, isolating IPv4, IPv6, and DNS. No DNS listener forwards its queries.
-Missing endpoint lists remain invalid. Extensions and language servers must be
-installed separately on the host before they can be used offline.
-
-PhotoCraft, VectorCraft, and DesignCraft use the same offline policy. Their
+PhotoCraft, VectorCraft, and DesignCraft run offline with a private network namespace. Their
 AppImages live in `~/Applications`; the generated command and desktop launchers
 enter the sandbox. The installer extracts their bundled icons for the application
 menu. Craft launchers use the apps' official desktop IDs and replace original
 entries after backing them up in `~/.local/share/sandbox/original-desktop-entries`.
 Old managed duplicates are removed. Launcher names omit the sandbox suffix;
 the command wrappers still enforce sandboxing. PhotoCraft's automatic desktop
-integration is disabled inside the sandbox to prevent it replacing the launcher. Herdr also has a terminal launcher. They can open, save, and export
+integration is disabled inside the sandbox to prevent it replacing the launcher. They can open, save, and export
 throughout the home directory.
 Secret masks, other agents' private-state protections, and read-only sandbox
 configuration still apply. Home access also covers the apps' own settings, so
 they do not need nested writable state grants.
-
-Herdr runs through the `herdr` wrapper. Its terminals and coding agents inherit
-one policy with the combined Claude, Codex, and OpenCode endpoint allowlists.
-Installed agent commands are linked directly into Herdr's private `bin` directory;
-they do not invoke the host's `sudo` wrappers. Herdr's app definition supplies the
-shared environment and separate state paths. Claude is exposed only if its app
-declaration supplies an installed command; this installer does not install agents.
-
-Herdr's settings and separate agent state live under
-`~/.local/share/sandbox/herdr`. Authenticate agents and configure their providers
-inside Herdr; host credentials are not copied. SIGRID's host keyring integration
-is not exposed inside this policy. Herdr uses a private socket in `/tmp` and the
-existing per-launch PID namespace. Detaching ends the live sandbox session;
-background persistence and reconnecting across launches are not supported.
 
 GUI apps receive GPU device access and read-only driver metadata. X11 apps
 share the host IPC namespace so MIT-SHM can communicate with the display
@@ -173,8 +152,7 @@ in `env` rather than a `/usr/bin/env` command prefix.
 current launcher filename. Its file arguments and actions are retained.
 `launchers` can specify several desktop filenames; otherwise `desktop.id` is
 used. Desktop entries invoke their own managed command wrapper. `pty = true`
-grants process inspection and pseudoterminals for terminal supervisors such as
-Herdr. It does not grant network or additional file access.
+grants process inspection and pseudoterminals for terminal supervisors. It does not grant network or additional file access.
 
 ## Reviewing the implementation
 
@@ -205,19 +183,12 @@ configuration, run from a normal host terminal at the repository root:
 ```sh
 make install-sandbox
 sudo sandbox up
-sandbox/tests/test_sandbox.sh --installed --app zed --app photocraft --app vectorcraft --app designcraft --app herdr
+sandbox/tests/test_sandbox.sh --installed --app photocraft --app vectorcraft --app designcraft
 ```
 
 Changing the effective TOML invalidates the installed fingerprint until
 `sandbox up` regenerates the host policy. The running sandbox protects its own
 TOML files against writes; edit these files from a normal host terminal.
-
-Zed preparation installs its official icon as `dev.zed.Zed` and disables both
-telemetry metrics and diagnostics. It preserves unrelated settings and saves the
-first original as `settings.json.pre-sandbox`. Zed remains offline. FileChooser
-portal access only selects paths; the file policy still controls which selected
-files Zed can read and write. Selecting a file outside its grants does not grant
-access automatically.
 
 Run local checks with `bash sandbox/tests/test_sandbox.sh`. Installed checks are
 reported separately, and either stage failing makes the overall result fail.
@@ -227,10 +198,3 @@ request. Only the portal's `InvalidArgs` response passes; AppArmor denial or an
 unavailable portal fails. This tests the actual method permission without opening
 a dialog or granting access to a file. It does not verify the dialog's UI or make
 files outside configured grants readable.
-
-Herdr's desktop launcher opens a dedicated GNOME Terminal server with the
-`dev.herdr.Herdr` application identity and official logo. Its D-Bus activation
-service is installed with the launcher. Ordinary terminal windows keep their
-identity; running `herdr` in an existing terminal keeps that terminal's dock icon.
-Re-pin Herdr after regenerating the launchers if the dock still contains its old
-launcher. `desktop.terminal_app_id` enables this behavior for another terminal app.

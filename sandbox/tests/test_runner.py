@@ -46,7 +46,7 @@ class RunnerTests(unittest.TestCase):
         self.assertIn("FAIL sandbox checks", result.stdout)
 
     def test_installed_success_is_reported_separately_from_regression_failure(self):
-        result = self.run_main("--installed --app zed", overrides="local_checks() { return 1; }")
+        result = self.run_main("--installed --app photocraft", overrides="local_checks() { return 1; }")
         self.assertEqual(result.returncode, 1)
         self.assertEqual(result.stdout.count("FAIL local checks"), 1)
         self.assertEqual(result.stdout.count("PASS installed checks"), 1)
