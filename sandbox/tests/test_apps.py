@@ -1,7 +1,6 @@
-"""Offline desktop apps and direct agent links inside Herdr."""
+"""Offline desktop apps."""
 
 import asyncio
-import gzip
 import json
 import os
 import shlex
@@ -48,7 +47,7 @@ class OfflineTests(unittest.TestCase):
             ip = Path(directory) / "ip"
             ip.write_text('#!/bin/bash\nprintf "%s\\0" "$@"\n')
             ip.chmod(0o755)
-            for name in ("zed", "photocraft", "vectorcraft", "designcraft", "herdr"):
+            for name in ("photocraft", "vectorcraft", "designcraft", "codex"):
                 with self.subTest(app=name):
                     result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox"))}
 CONFIG={shlex.quote(str(config))}; APP={name}; CMD=(/bin/true); ENV_ARGS=()
@@ -61,7 +60,7 @@ run_payload
 ''')
                     self.assertEqual(result.returncode, 0, result.stderr)
                     arguments = result.stdout.split("\0")
-                    self.assertEqual("--unshare-net" in arguments, name != "herdr")
+                    self.assertEqual("--unshare-net" in arguments, name != "codex")
                     self.assertIn("--cap-drop", arguments)
                     self.assertEqual(arguments[:3], ["netns", "exec", f"sandbox-{name}"])
 
@@ -141,9 +140,6 @@ app_file_rules {name} {shlex.quote(directory)}
                 self.assertIn(f'"{directory}/**" rwklmix,', result.stdout)
                 self.assertIn(f'deny "{directory}/.codex/**" rwklmx,', result.stdout)
                 self.assertIn(f'deny "{fixture}" wkl,', result.stdout)
-            agent_endpoints = set().union(*(set(by_name[name]["endpoints"])
-                                           for name in ("claude", "codex", "opencode")))
-            self.assertEqual(set(by_name["herdr"]["endpoints"]), agent_endpoints)
 
     def test_corrupt_download_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -159,12 +155,8 @@ app_file_rules {name} {shlex.quote(directory)}
             home = Path(directory)
             assets = home / "downloads"
             assets.mkdir()
-            (home / ".local/zed.app/bin").mkdir(parents=True)
-            (home / ".local/zed.app/bin/zed").write_bytes(b"zed")
-            (assets / "bwrap-linux-x86_64.gz").write_bytes(gzip.compress(b"helper"))
             for name in installer.ASSETS:
-                if name != "bwrap-linux-x86_64.gz":
-                    (assets / name).write_bytes(b"fixture")
+                (assets / name).write_bytes(b"fixture")
             config = home / "sandbox.toml"
             config.write_text("preserve config")
             def version(command, **kwargs):
@@ -172,8 +164,7 @@ app_file_rules {name} {shlex.quote(directory)}
                     icon = Path(kwargs["cwd"]) / "squashfs-root" / command[-1]
                     icon.parent.mkdir()
                     icon.write_bytes(b"icon")
-                output = "herdr 0.9.3" if command[0].endswith("/herdr") else "Zed 1.23.2 fixture"
-                return subprocess.CompletedProcess(command, 0, output)
+                return subprocess.CompletedProcess(command, 0, "")
 
             with patch.object(installer.subprocess, "run", side_effect=version), patch("builtins.print"):
                 installer.install_binaries(home, assets)
@@ -183,56 +174,8 @@ app_file_rules {name} {shlex.quote(directory)}
                 self.assertEqual((home / ".local/share/icons/hicolor/256x256/apps" /
                                   f"ai.storyteller.{name}.png").read_bytes(), b"icon")
             self.assertEqual(config.read_text(), "preserve config")
-            executable = home / "agent"
-            executable.write_text("raw executable")
-            apps = [{"name": "codex", "cmd": ["/usr/bin/env", "PATH=/host/wrappers", str(executable)]}]
-            installer.install_agent_links(home, apps)
-            state = home / ".local/share/sandbox/herdr"
-            (state / "codex/auth.json").write_text("preserve auth")
-            installer.install_agent_links(home, apps)
-            self.assertEqual((state / "bin/codex").readlink(), executable)
-            self.assertEqual((state / "codex/auth.json").read_text(), "preserve auth")
-            self.assertFalse((state / "bin/claude").exists())
 
-    def test_herdr_environment_reaches_raw_agents_without_another_sandbox(self):
-        with tempfile.TemporaryDirectory(prefix="herdr home ") as directory:
-            home = Path(directory)
-            config = public_config(directory)
-            with patch.object(loader, "user_home", return_value=directory):
-                apps = loader.read_config(config, home / "absent.toml")["apps"]
-            herdr = next(app for app in apps if app["name"] == "herdr")
-            herdr_binary = Path(herdr["cmd"][-1])
-            herdr_binary.parent.mkdir(parents=True)
-            herdr_binary.write_text('#!/bin/bash\nexec codex "$@"\n')
-            herdr_binary.chmod(0o755)
-            agent = home / "agent"
-            agent.write_text('#!/usr/bin/python3 -S\nimport json,os,sys\n'
-                             'print(json.dumps({"args":sys.argv[1:],"env":dict(os.environ)}))\n')
-            agent.chmod(0o755)
-            installer.install_agent_links(home, [{"name": "codex", "cmd": [str(agent)]}])
-            result = subprocess.run([*herdr["cmd"], "two words", "a=b"], text=True, capture_output=True,
-                                    env={**os.environ, **herdr.get("env", {})})
-            self.assertEqual(result.returncode, 0, result.stderr)
-            data = json.loads(result.stdout)
-            self.assertEqual(data["args"], ["two words", "a=b"])
-            state = home / ".local/share/sandbox/herdr"
-            for key, suffix in (("CODEX_HOME", "codex"), ("GH_CONFIG_DIR", "gh"),
-                                ("CARGO_HOME", "cargo"), ("XDG_CONFIG_HOME", "config"),
-                                ("UV_CACHE_DIR", "uv/cache")):
-                self.assertEqual(data["env"][key], str(state / suffix))
-            self.assertEqual(data["env"]["OPENCODE_DISABLE_AUTOUPDATE"], "1")
-
-    def test_unmanaged_agent_launcher_is_preserved(self):
-        with tempfile.TemporaryDirectory() as directory:
-            home = Path(directory)
-            launcher = home / ".local/share/sandbox/herdr/bin/codex"
-            launcher.parent.mkdir(parents=True)
-            launcher.write_text("user launcher")
-            with self.assertRaisesRegex(ValueError, "conflicting"):
-                installer.install_agent_links(home, [{"name": "codex", "cmd": ["/bin/true"]}])
-            self.assertEqual(launcher.read_text(), "user launcher")
-
-    def test_craft_icons_and_herdr_terminal_launcher(self):
+    def test_craft_icons_and_launchers(self):
         with tempfile.TemporaryDirectory() as directory:
             config = public_config(directory)
             installed = Path(directory) / "applications"
@@ -241,32 +184,22 @@ app_file_rules {name} {shlex.quote(directory)}
                 '# sandbox-managed desktop entry for app "zed"\n'
                 '[Desktop Entry]\nName=Zed (sandboxed)\nIcon=herdr\n'
                 'Exec=/usr/bin/env X=1 zed photocraft vectorcraft designcraft herdr\n')
-            for app in ("photocraft", "vectorcraft", "designcraft", "herdr"):
+            for app in ("photocraft", "vectorcraft", "designcraft"):
                 result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox_wrappers"))}
 HOME={shlex.quote(directory)}; CONFIG={shlex.quote(str(config))}
 DESKTOP_DIR={shlex.quote(str(installed))}; BIN_DIR="$HOME/bin"; DESKTOP_BACKUP_DIR="$HOME/backups"
 write_desktop_entry {app}
 ''')
                 self.assertEqual(result.returncode, 0, result.stderr)
-                filename = "dev.herdr.Herdr.desktop" if app == "herdr" else f"ai.storyteller.{app}.desktop"
+                filename = f"ai.storyteller.{app}.desktop"
                 entry = (installed / filename).read_text()
                 self.assertNotIn("Name=Zed", entry)
-                if app == "herdr":
-                    self.assertIn("Name=Herdr\n", entry)
-                    self.assertIn("Icon=herdr", entry)
-                    self.assertIn("Terminal=false", entry)
-                    self.assertIn("--app-id=dev.herdr.Herdr", entry)
-                    self.assertNotIn("StartupWMClass=", entry)
-                else:
-                    self.assertIn(f"Icon={directory}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.{app}.png", entry)
-                    self.assertIn("Terminal=false", entry)
-                    self.assertIn(f"Name={app.capitalize().replace('craft', 'Craft')}\n", entry)
-                    identity = "photocraft" if app == "photocraft" else f"ai.storyteller.{app}"
-                    self.assertIn(f"StartupWMClass={identity}", entry)
-                if app != "herdr":
-                    self.assertIn(f'Exec="{directory}/bin/{app}" %U', entry)
-                else:
-                    self.assertIn(f'"--" "{directory}/bin/herdr" %U', entry)
+                self.assertIn(f"Icon={directory}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.{app}.png", entry)
+                self.assertIn("Terminal=false", entry)
+                self.assertIn(f"Name={app.capitalize().replace('craft', 'Craft')}\n", entry)
+                identity = "photocraft" if app == "photocraft" else f"ai.storyteller.{app}"
+                self.assertIn(f"StartupWMClass={identity}", entry)
+                self.assertIn(f'Exec="{directory}/bin/{app}" %U', entry)
                 self.assertNotIn("(sandboxed)", entry)
 
     def test_craft_migration_preserves_originals_and_actions_and_removes_managed_duplicates(self):
@@ -294,7 +227,7 @@ write_desktop_entry {app}
 CONFIG={shlex.quote(str(config))}; HOME={shlex.quote(directory)}
 DESKTOP_DIR="$HOME/applications"; SYSTEM_DESKTOP_DIR="$HOME/system"
 DESKTOP_BACKUP_DIR="$HOME/backups"; BACKUP_DIR="$HOME/wrapper-backups"; BIN_DIR="$HOME/bin"
-for app in herdr vectorcraft photocraft designcraft; do
+for app in vectorcraft photocraft designcraft; do
     write_wrapper "$app"
     write_desktop_entry "$app"
 done
@@ -348,6 +281,9 @@ printf '%s\\0' "${{APP_ENV_ARGS[@]}}"
             installed = home / "applications"
             installed.mkdir()
             config = public_config(directory)
+            with config.open("a") as file:
+                file.write('\n[[apps]]\nname = "zed"\ngui = true\n'
+                           'cmd = ["/bin/true"]\nlaunchers = ["dev.zed.Zed.desktop"]\nendpoints = []\n')
             result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox_wrappers"))}
 HOME={shlex.quote(directory)}; CONFIG={shlex.quote(str(config))}
 BIN_DIR="$HOME/.local/bin"; DESKTOP_DIR={shlex.quote(str(installed))}; DESKTOP_BACKUP_DIR="$HOME/backups"
