@@ -9,6 +9,12 @@ dns_port = 53
 
 [[apps]]
 name = "orca"
+desktop.enabled = true
+desktop.id = "orca-ide.desktop"
+desktop.name = "Orca"
+desktop.icon = "${HOME}/.local/share/icons/hicolor/256x256/apps/orca-ide.png"
+desktop.window_class = "orca"
+desktop.terminal = false
 cmd = [
     "${HOME}/Applications/orca-linux.AppImage",
 ]
@@ -206,6 +212,45 @@ dir.write = ["${HOME}"]
 endpoints = []
 
 [[apps]]
+name = "wordcraft"
+desktop.enabled = true
+desktop.id = "ai.storyteller.wordcraft.desktop"
+desktop.name = "WordCraft"
+desktop.icon = "${HOME}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.wordcraft.png"
+desktop.window_class = "ai.storyteller.wordcraft"
+desktop.terminal = false
+cmd = ["${HOME}/Applications/wordcraft-linux.AppImage"]
+gui = true
+dir.write = ["${HOME}"]
+endpoints = []
+
+[[apps]]
+name = "deckcraft"
+desktop.enabled = true
+desktop.id = "ai.storyteller.deckcraft.desktop"
+desktop.name = "DeckCraft"
+desktop.icon = "${HOME}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.deckcraft.png"
+desktop.window_class = "ai.storyteller.deckcraft"
+desktop.terminal = false
+cmd = ["${HOME}/Applications/deckcraft-linux.AppImage"]
+gui = true
+dir.write = ["${HOME}"]
+endpoints = []
+
+[[apps]]
+name = "gridcraft"
+desktop.enabled = true
+desktop.id = "ai.storyteller.gridcraft.desktop"
+desktop.name = "GridCraft"
+desktop.icon = "${HOME}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.gridcraft.png"
+desktop.window_class = "ai.storyteller.gridcraft"
+desktop.terminal = false
+cmd = ["${HOME}/Applications/gridcraft-linux.AppImage"]
+gui = true
+dir.write = ["${HOME}"]
+endpoints = []
+
+[[apps]]
 name = "vibe"
 browser = true
 env.BROWSER = "${HOME}/.local/share/sandbox/runtimes/browser/xdg-open"
@@ -249,4 +294,25 @@ endpoints = [
     "api.mistral.ai",
     "console.mistral.ai",
     "chat.mistral.ai",
+]
+
+[[apps]]
+name = "zed"
+cmd = ["${HOME}/.local/zed.app/bin/zed", "--foreground"]
+gui = true
+launchers = ["dev.zed.Zed.desktop"]
+desktop.name = "Zed"
+desktop.template = "${HOME}/.local/zed.app/share/applications/{id}"
+desktop.icon = "dev.zed.Zed"
+desktop.window_class = "dev.zed.Zed"
+dir.read = ["${HOME}/.local/zed.app"]
+dir.state = ["${HOME}/.config/zed", "${HOME}/.local/share/zed", "${HOME}/.cache/zed"]
+endpoints = [
+    "zed.dev",
+    "api.zed.dev",
+    "collab.zed.dev",
+    "extensions.zed.dev",
+    "github.com",
+    "api.github.com",
+    "release-assets.githubusercontent.com",
 ]

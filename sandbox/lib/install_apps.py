@@ -15,17 +15,29 @@ from pathlib import Path
 from load_config import user_home
 
 ASSETS = {
-    "photocraft-0.12.0-linux-x86_64.AppImage": (
-        "https://github.com/storytold/photocraft/releases/download/v0.12.0/photocraft-0.12.0-linux-x86_64.AppImage",
-        "da821339afce93b72991c7900a28f589eb06a885e0ab59ea702ddec9a280ac66",
+    "photocraft-0.21.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/photocraft/releases/download/v0.21.0/photocraft-0.21.0-linux-x86_64.AppImage",
+        "7726533adaa5896413d2ce0be858d522256450bfef244fbc5433bed4f99fa60b",
     ),
-    "vectorcraft-0.14.0-linux-x86_64.AppImage": (
-        "https://github.com/storytold/vectorcraft/releases/download/v0.14.0/vectorcraft-0.14.0-linux-x86_64.AppImage",
-        "89757a1e806164b95eae2cef9bdf98bf1a03ef10a9b2cc8a50bd05c54b74c792",
+    "vectorcraft-0.22.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/vectorcraft/releases/download/v0.22.0/vectorcraft-0.22.0-linux-x86_64.AppImage",
+        "09a68d22232530219c12643bb7e9eda6b1f6778cbf9f2f2fc46ff96e2259f7b0",
     ),
-    "designcraft-0.11.0-linux-x86_64.AppImage": (
-        "https://github.com/storytold/designcraft/releases/download/v0.11.0/designcraft-0.11.0-linux-x86_64.AppImage",
-        "7e246a6f793719c9818e9d1497efec5e22308c91e42ff3b1fe5f3667ae3a6b8c",
+    "designcraft-0.18.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/designcraft/releases/download/v0.18.0/designcraft-0.18.0-linux-x86_64.AppImage",
+        "013640920f00af2a4fca09c1bcd44d97bd404f68e1bd8665377335f2c12c20d3",
+    ),
+    "wordcraft-0.16.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/wordcraft/releases/download/v0.16.0/wordcraft-0.16.0-linux-x86_64.AppImage",
+        "980ac1d6918f1c1e0c240d859374f22b19e524d3af3372daef1344c5a097ae17",
+    ),
+    "deckcraft-0.16.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/deckcraft/releases/download/v0.16.0/deckcraft-0.16.0-linux-x86_64.AppImage",
+        "1211d8b517377eed0fc037d64daef1b75b7ee278e0620ab0d7e7beb6e86183f7",
+    ),
+    "gridcraft-0.17.0-linux-x86_64.AppImage": (
+        "https://github.com/storytold/gridcraft/releases/download/v0.17.0/gridcraft-0.17.0-linux-x86_64.AppImage",
+        "0455c863535822d951a1a91fdee8dd029369e0f2f93f7ac99c4916ef70a87761",
     ),
 }
 
@@ -54,11 +66,17 @@ def install_binaries(home, directory):
         app = name.split("-", 1)[0]
         destination = home / "Applications" / f"{app}-linux.AppImage"
         source = directory / name
-        if destination.exists() and not filecmp.cmp(source, destination, shallow=False):
-            raise ValueError(f"different app already installed: {destination}")
         destination.parent.mkdir(parents=True, exist_ok=True)
-        if not destination.exists():
-            shutil.copy2(source, destination)
+        if not destination.exists() or not filecmp.cmp(source, destination, shallow=False):
+            with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=f".{app}-",
+                                             delete=False) as temporary:
+                staged = Path(temporary.name)
+            try:
+                shutil.copy2(source, staged)
+                staged.chmod(0o755)
+                staged.replace(destination)
+            finally:
+                staged.unlink(missing_ok=True)
         destination.chmod(0o755)
         icon_name = f"ai.storyteller.{app}.png"
         with tempfile.TemporaryDirectory(prefix=f"{app}-icon-") as temporary:
@@ -68,6 +86,21 @@ def install_binaries(home, directory):
             icon.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(Path(temporary) / "squashfs-root" / icon_name, icon)
         print(f"Installed {app}: {destination}")
+
+
+
+def install_orca_icon(home):
+    home = Path(home)
+    appimage = home / "Applications/orca-linux.AppImage"
+    if not appimage.exists():
+        return
+    bundled = "usr/share/icons/hicolor/256x256/apps/orca-ide.png"
+    with tempfile.TemporaryDirectory(prefix="orca-icon-") as temporary:
+        subprocess.run([str(appimage), "--appimage-extract", bundled],
+                       cwd=temporary, check=True, timeout=30)
+        icon = home / ".local/share/icons/hicolor/256x256/apps/orca-ide.png"
+        icon.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(Path(temporary) / "squashfs-root" / bundled, icon)
 
 
 def main():
@@ -81,6 +114,7 @@ def main():
     directory = args.download_dir or home / ".cache/sandbox/app-downloads"
     fetch_assets(directory)
     install_binaries(home, directory)
+    install_orca_icon(home)
 
 
 if __name__ == "__main__":

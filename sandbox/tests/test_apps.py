@@ -47,7 +47,7 @@ class OfflineTests(unittest.TestCase):
             ip = Path(directory) / "ip"
             ip.write_text('#!/bin/bash\nprintf "%s\\0" "$@"\n')
             ip.chmod(0o755)
-            for name in ("photocraft", "vectorcraft", "designcraft", "codex"):
+            for name in ("photocraft", "vectorcraft", "designcraft", "wordcraft", "deckcraft", "gridcraft", "codex"):
                 with self.subTest(app=name):
                     result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox"))}
 CONFIG={shlex.quote(str(config))}; APP={name}; CMD=(/bin/true); ENV_ARGS=()
@@ -123,7 +123,7 @@ class AppTests(unittest.TestCase):
             with patch.object(loader, "user_home", return_value=directory):
                 apps = loader.read_config(config, Path(directory) / "absent.toml")["apps"]
             by_name = {app["name"]: app for app in apps}
-            for name in ("photocraft", "vectorcraft", "designcraft"):
+            for name in ("photocraft", "vectorcraft", "designcraft", "wordcraft", "deckcraft", "gridcraft"):
                 app = by_name[name]
                 self.assertEqual(app["endpoints"], [])
                 self.assertEqual(app["dir"]["write"], [directory])
@@ -150,13 +150,17 @@ app_file_rules {name} {shlex.quote(directory)}
                     installer.fetch_assets(directory)
             download.assert_not_called()
 
-    def test_installation_is_repeatable_and_preserves_config_and_agent_state(self):
+    def test_installation_upgrades_apps_is_repeatable_and_preserves_config_and_agent_state(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)
             assets = home / "downloads"
             assets.mkdir()
             for name in installer.ASSETS:
                 (assets / name).write_bytes(b"fixture")
+            applications = home / "Applications"
+            applications.mkdir()
+            for app in ("photocraft", "vectorcraft", "designcraft", "wordcraft", "deckcraft", "gridcraft"):
+                (applications / f"{app}-linux.AppImage").write_bytes(b"older release")
             config = home / "sandbox.toml"
             config.write_text("preserve config")
             def version(command, **kwargs):
@@ -169,11 +173,28 @@ app_file_rules {name} {shlex.quote(directory)}
             with patch.object(installer.subprocess, "run", side_effect=version), patch("builtins.print"):
                 installer.install_binaries(home, assets)
                 installer.install_binaries(home, assets)
-            for name in ("photocraft", "vectorcraft", "designcraft"):
+            for name in ("photocraft", "vectorcraft", "designcraft", "wordcraft", "deckcraft", "gridcraft"):
                 self.assertEqual((home / "Applications" / f"{name}-linux.AppImage").read_bytes(), b"fixture")
                 self.assertEqual((home / ".local/share/icons/hicolor/256x256/apps" /
                                   f"ai.storyteller.{name}.png").read_bytes(), b"icon")
             self.assertEqual(config.read_text(), "preserve config")
+
+    def test_orca_launcher_matches_bundled_window_identity_and_icon(self):
+        with tempfile.TemporaryDirectory() as directory:
+            config = public_config(directory)
+            installed = Path(directory) / "applications"
+            installed.mkdir()
+            result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox_wrappers"))}
+HOME={shlex.quote(directory)}; CONFIG={shlex.quote(str(config))}
+DESKTOP_DIR={shlex.quote(str(installed))}; BIN_DIR="$HOME/bin"; DESKTOP_BACKUP_DIR="$HOME/backups"
+write_desktop_entry orca
+''')
+            self.assertEqual(result.returncode, 0, result.stderr)
+            entry = (installed / "orca-ide.desktop").read_text()
+            self.assertIn("StartupWMClass=orca\n", entry)
+            self.assertIn(f"Icon={directory}/.local/share/icons/hicolor/256x256/apps/orca-ide.png\n", entry)
+            self.assertIn(f'Exec="{directory}/bin/orca" %U', entry)
+            self.assertIn("Terminal=false", entry)
 
     def test_craft_icons_and_launchers(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -184,7 +205,7 @@ app_file_rules {name} {shlex.quote(directory)}
                 '# sandbox-managed desktop entry for app "zed"\n'
                 '[Desktop Entry]\nName=Zed (sandboxed)\nIcon=herdr\n'
                 'Exec=/usr/bin/env X=1 zed photocraft vectorcraft designcraft herdr\n')
-            for app in ("photocraft", "vectorcraft", "designcraft"):
+            for app in ("photocraft", "vectorcraft", "designcraft", "wordcraft", "deckcraft", "gridcraft"):
                 result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox_wrappers"))}
 HOME={shlex.quote(directory)}; CONFIG={shlex.quote(str(config))}
 DESKTOP_DIR={shlex.quote(str(installed))}; BIN_DIR="$HOME/bin"; DESKTOP_BACKUP_DIR="$HOME/backups"
@@ -211,7 +232,7 @@ write_desktop_entry {app}
             for path in (installed, system, binaries):
                 path.mkdir()
             originals = {}
-            for app in ("photocraft", "vectorcraft", "designcraft"):
+            for app in ("photocraft", "vectorcraft", "designcraft", "wordcraft", "deckcraft", "gridcraft"):
                 original = (f"[Desktop Entry]\nName={app} (sandboxed)\nIcon=old-icon\n"
                             f"Exec={app} %F\nCategories=Graphics;\nMimeType=image/png;\n"
                             f"[Desktop Action new-window]\nName=New Window\nExec={app} --new %F\n")
@@ -227,7 +248,7 @@ write_desktop_entry {app}
 CONFIG={shlex.quote(str(config))}; HOME={shlex.quote(directory)}
 DESKTOP_DIR="$HOME/applications"; SYSTEM_DESKTOP_DIR="$HOME/system"
 DESKTOP_BACKUP_DIR="$HOME/backups"; BACKUP_DIR="$HOME/wrapper-backups"; BIN_DIR="$HOME/bin"
-for app in vectorcraft photocraft designcraft; do
+for app in vectorcraft photocraft designcraft wordcraft deckcraft gridcraft; do
     write_wrapper "$app"
     write_desktop_entry "$app"
 done
@@ -256,7 +277,7 @@ remove_stale_launchers
                     self.assertEqual({path.name: path.read_bytes() for path in installed.glob("*.desktop")}, snapshot)
 
     def test_photocraft_desktop_integration_is_disabled_in_the_payload(self):
-        for app in ("photocraft", "vectorcraft", "designcraft"):
+        for app in ("photocraft", "vectorcraft", "designcraft", "wordcraft", "deckcraft", "gridcraft"):
             result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox"))}
 APP={app}; SUDO_UID=$(id -u); HOME_DIR="$HOME"; DIRECTORIES=()
 prepare_mounts_and_environment
@@ -281,6 +302,7 @@ printf '%s\\0' "${{APP_ENV_ARGS[@]}}"
             installed = home / "applications"
             installed.mkdir()
             config = public_config(directory)
+            config.write_text(config.read_text().replace('\nname = "zed"\n', '\nname = "unused-zed"\n'))
             with config.open("a") as file:
                 file.write('\n[[apps]]\nname = "zed"\ngui = true\n'
                            'cmd = ["/bin/true"]\nlaunchers = ["dev.zed.Zed.desktop"]\nendpoints = []\n')
