@@ -93,16 +93,16 @@ Run these commands from a normal host terminal, outside the sandbox:
 ```sh
 make install-apps
 sudo sandbox up
-sandbox/tests/test_sandbox.sh --installed --app photocraft --app vectorcraft --app designcraft
+sandbox/tests/test_sandbox.sh --installed --app photocraft --app vectorcraft --app designcraft --app wordcraft --app deckcraft --app gridcraft
 ```
 
 App definitions belong in `sandbox.toml`; machine-specific grants belong in
 `~/.config/sandbox/local.toml`. The installer does not edit either configuration.
-It verifies SHA-256 digests for PhotoCraft v0.12.0, VectorCraft v0.14.0, and DesignCraft v0.11.0.
+It verifies SHA-256 digests for PhotoCraft v0.21.0, VectorCraft v0.22.0, DesignCraft v0.18.0, WordCraft v0.16.0, DeckCraft v0.16.0, and GridCraft v0.17.0.
 Downloads can be reused with `python3 sandbox/lib/install_apps.py
 --download-dir /path/to/downloads`, followed by `make install-sandbox`.
 
-PhotoCraft, VectorCraft, and DesignCraft run offline with a private network namespace. Their
+PhotoCraft, VectorCraft, DesignCraft, WordCraft, DeckCraft, and GridCraft run offline with a private network namespace. Their
 AppImages live in `~/Applications`; the generated command and desktop launchers
 enter the sandbox. The installer extracts their bundled icons for the application
 menu. Craft launchers use the apps' official desktop IDs and replace original
@@ -183,7 +183,7 @@ configuration, run from a normal host terminal at the repository root:
 ```sh
 make install-sandbox
 sudo sandbox up
-sandbox/tests/test_sandbox.sh --installed --app photocraft --app vectorcraft --app designcraft
+sandbox/tests/test_sandbox.sh --installed --app photocraft --app vectorcraft --app designcraft --app wordcraft --app deckcraft --app gridcraft
 ```
 
 Changing the effective TOML invalidates the installed fingerprint until
