@@ -1,200 +1,206 @@
 # Sandbox
 
-1. `sudo sandbox up` prepares the host. `ip` creates per-app network namespaces and veth pairs. `nft` restricts traffic. `apparmor_parser` loads file policies. `systemctl` starts the DNS/TLS proxy.
-2. `sudo` runs the launcher as root.
-3. `ip netns exec` enters the app's network namespace.
-4. `aa-exec` applies the app's AppArmor profile. Children inherit it.
-5. `setpriv` restores the caller's user and groups and clears inheritable capabilities.
-6. `bwrap` isolates user, PID, IPC, and cgroup namespaces. It mounts a read-only root, allowed folders, secret masks, and private `/tmp`. It drops capabilities and starts the app.
-7. `nftables` redirects HTTPS to the proxy and blocks other traffic except DNS. The proxy allows exact TLS SNI hostnames from `endpoints`.
-
-Example `sandbox/sandbox.toml`:
-
-```toml
-default = "codex"
-
-[net]
-subnet = "10.77.0.0/24"
-
-[proxy]
-sni_port = 3128
-dns_port = 53
-
-[[apps]]
-name = "codex"
-cmd = ["${HOME}/.local/share/codex/current/bin/codex"]
-codex_home = "${HOME}/.codex"
-dir.read = ["${HOME}/.agents"]
-endpoints = ["api.openai.com", "chatgpt.com", "auth.openai.com"]
-```
-
-Example `~/.config/sandbox/local.toml`:
-
-Local entries match publicly declared apps by `name`. `dir.read`, `dir.write`,
-`dir.state`, and `endpoints` append to the public lists; duplicates are removed.
-`env` and `desktop` merge by key. `cmd`, `gui`, `pty`, `wrapper_name`, `launchers`,
-`codex_home`, `sigrid`, and `browser` replace public values
-when supplied. Omitted settings inherit public values. Global settings remain
-public-only. Local read/write directories must exist; state directories are
-created during setup.
-
-```toml
-[[apps]]
-name = "codex"
-dir.write = ["${HOME}/projects/example"]
-endpoints = ["github.com"]
-```
-
-The former `[[directories]]` format is no longer supported. Move each directory's
-`apps` grants into the corresponding app's `dir.write` list and its `read` grants
-into `dir.read`. Copy its endpoints to each app that received access.
-
-## SIGRID in project shells
-
-Codex and OpenCode expose the installed SIGRID CLI through a dedicated runtime
-launcher. Install SIGRID first, then run `make install-sandbox`, `sudo sandbox up`,
-and restart the agent. This applies to every project granted to those apps.
-
-The `sigrid = true` app setting enables access to the desktop session bus and
-Secret Service. Its `dir.read` grants the installed package and runtime launcher;
-`dir.state` grants `~/.config/sigrid`, which stores group names and selections.
-The keyring files remain masked. Apps without this setting receive no new
-Secret Service permissions. A running desktop session is required.
-
-```sh
-sigrid --help
-```
-
-SIGRID's executable prints exports; noninteractive agent shells do not load the
-host's SIGRID shell function. Capture and evaluate the exports in the same shell
-as the project command:
-
-```sh
-sigrid_exports="$(sigrid)" && eval "$sigrid_exports" && ./run-project.sh
-```
-
-## Mistral Vibe
-
-`vibe` and `vibe-acp` run the official installation under
-`~/.local/share/mistral-vibe/bin` through sandbox wrappers. Both share private
-configuration and credentials in `~/.vibe`, OpenCode's supporting tool access,
-and the Mistral API, console, and chat endpoints. Project grants belong in
-`~/.config/sandbox/local.toml`. Run `vibe --setup` to authenticate.
-
-Both Vibe entries enable `browser = true` and use the managed `xdg-open`
-runtime through `BROWSER` and `PATH`. It opens HTTP URLs in the host browser
-through the desktop portal; browser profiles remain masked. This requires a
-running desktop session and does not grant display or file chooser access.
-
-## Desktop apps
-
-Run these commands from a normal host terminal, outside the sandbox:
-
-```sh
-make install-apps
-sudo sandbox up
-sandbox/tests/test_sandbox.sh --installed --app photocraft --app vectorcraft --app designcraft --app wordcraft --app deckcraft --app gridcraft
-```
-
-App definitions belong in `sandbox.toml`; machine-specific grants belong in
-`~/.config/sandbox/local.toml`. The installer does not edit either configuration.
-It verifies SHA-256 digests for PhotoCraft v0.21.0, VectorCraft v0.22.0, DesignCraft v0.18.0, WordCraft v0.16.0, DeckCraft v0.16.0, and GridCraft v0.17.0.
-Downloads can be reused with `python3 sandbox/lib/install_apps.py
---download-dir /path/to/downloads`, followed by `make install-sandbox`.
-
-PhotoCraft, VectorCraft, DesignCraft, WordCraft, DeckCraft, and GridCraft run offline with a private network namespace. Their
-AppImages live in `~/Applications`; the generated command and desktop launchers
-enter the sandbox. The installer extracts their bundled icons for the application
-menu. Craft launchers use the apps' official desktop IDs and replace original
-entries after backing them up in `~/.local/share/sandbox/original-desktop-entries`.
-Old managed duplicates are removed. Launcher names omit the sandbox suffix;
-the command wrappers still enforce sandboxing. PhotoCraft's automatic desktop
-integration is disabled inside the sandbox to prevent it replacing the launcher. They can open, save, and export
-throughout the home directory.
-Secret masks, other agents' private-state protections, and read-only sandbox
-configuration still apply. Home access also covers the apps' own settings, so
-they do not need nested writable state grants.
-
-GUI apps receive GPU device access and read-only driver metadata. X11 apps
-share the host IPC namespace so MIT-SHM can communicate with the display
-server; CLI apps and GUI sessions without DISPLAY keep IPC isolation.
-
-## Extending an app
-
-Keep app policy in `sandbox.toml` and personal overrides in
-`~/.config/sandbox/local.toml`. No other file supplies configuration.
-`apps.json` is generated host runtime state, checked against the effective policy
-fingerprint at launch.
-
-```toml
-[[apps]]
-name = "drawing"
-cmd = ["${HOME}/Applications/drawing", "--foreground"]
-gui = true
-endpoints = []
-dir.write = ["${HOME}/Pictures"]
-env.RENDER_MODE = "local"
-desktop.enabled = true
-desktop.id = "org.example.Drawing.desktop"
-desktop.name = "Drawing"
-desktop.icon = "org.example.Drawing"
-desktop.window_class = "org.example.Drawing"
-desktop.terminal = false
-```
-
-`env` values are strings; `${HOME}` expands to the invoking account's home.
-Local keys override public keys, and `--env NAME=value` overrides configured
-values. Existing command argument vectors are preserved verbatim, including
-literal arguments containing `=`. For new entries, put environment assignments
-in `env` rather than a `/usr/bin/env` command prefix.
-
-`desktop.template` optionally names a desktop template; `{id}` expands to the
-current launcher filename. Its file arguments and actions are retained.
-`launchers` can specify several desktop filenames; otherwise `desktop.id` is
-used. Desktop entries invoke their own managed command wrapper. `pty = true`
-grants process inspection and pseudoterminals for terminal supervisors. It does not grant network or additional file access.
-
-## Reviewing the implementation
-
-The entrypoints retain the existing CLI and Make targets. Review their delegates
-in this order:
-
-| Piece | Responsibility |
-| --- | --- |
-| `lib/sandbox_core/config.py`, `schema.py` | Read, merge, validate, canonicalize and fingerprint the two TOML files |
-| `lib/sandbox_core/policy.py` | Derive effective grants, private state, environment, capabilities and desktop identity |
-| `lib/sandbox_core/launch.py`, `lib/launch/` | Build an ordered argument vector, inspect host prerequisites, then execute it |
-| `lib/sandbox_core/desktop.py`, `lib/install/` | Render desktop actions, preserve originals, generate wrappers and remove managed stale entries |
-| `lib/prepare_runtime.py`, `prepare_*.py` | One preparation entrypoint and specific installation adapters |
-| `lib/sandbox_core/network.py`, `lib/host/` | Shared address allocation, host networking, policy installation and services |
-| `proxy/sandbox_proxy_core/` | TLS parsing and relay, DNS forwarding, and runtime configuration |
-
-The Python launch planner performs no host operations. Argument groups carry
-explicit lengths and are serialized as JSON, then read into Bash arrays; no
-shell text is evaluated. Config mounts come after writable grants and masks.
-Offline launches unshare networking; X11 alone shares the display server's IPC
-namespace. AppArmor status counts enforcing profiles from the kernel, not files
-left in `/etc/apparmor.d`.
-
-`lib/sandbox_core/legacy.py` retains presentation defaults for existing
-installations. New apps declare their metadata in TOML. After changing the
-configuration, run from a normal host terminal at the repository root:
+Run installation and host setup from a normal host terminal:
 
 ```sh
 make install-sandbox
 sudo sandbox up
-sandbox/tests/test_sandbox.sh --installed --app photocraft --app vectorcraft --app designcraft --app wordcraft --app deckcraft --app gridcraft
+sandbox/tests/test_sandbox.sh --installed
 ```
 
-Changing the effective TOML invalidates the installed fingerprint until
-`sandbox up` regenerates the host policy. The running sandbox protects its own
-TOML files against writes; edit these files from a normal host terminal.
+The launcher enters a per-app network namespace, applies an inherited AppArmor
+profile, drops to the calling user, and starts Bubblewrap. The root filesystem is
+read-only except for explicit binds. Secret masks, other-app state masks, and
+protected definition mounts follow app mounts. Bubblewrap drops capabilities
+before starting the payload. Apps normally use the namespace firewall and hostname-checking HTTPS proxy.
+An empty endpoint file selects offline mode unless the app explicitly selects
+public web networking. `--offline` disconnects either mode for one launch.
 
-Run local checks with `bash sandbox/tests/test_sandbox.sh`. Installed checks are
-reported separately, and either stage failing makes the overall result fail.
+## App definitions
 
-Installed GUI checks also send an intentionally malformed `FileChooser.OpenFile`
-request. Only the portal's `InvalidArgs` response passes; AppArmor denial or an
-unavailable portal fails. This tests the actual method permission without opening
-a dialog or granting access to a file. It does not verify the dialog's UI or make
-files outside configured grants readable.
+`sandbox.toml` contains only `default`, `[net]`, and `[proxy]`. Apps are immediate
+subdirectories of `apps/`, discovered in filename order. Their directory names
+are their identities. App TOML and feature flags are no longer accepted.
+
+```text
+apps/codex/
+├── apparmor          # Required: native rules inside the generated profile
+├── mounts.args       # Required: native Bubblewrap arguments
+├── endpoints         # Required: exact hostnames; empty normally means offline
+├── state             # Optional: state directories to create and isolate
+├── launch.sh         # Optional: environment setup and default command
+├── network           # Optional: web enables public HTTP/HTTPS browsing
+├── wrappers          # Optional: exact PATH-wrapper names, one per line
+├── mounts.x11.args   # Optional: additional arguments when DISPLAY is present
+└── *.desktop         # Optional: native desktop entries with official filenames
+```
+
+For example, the two native file-access declarations for a shared read-only
+installation are:
+
+```text
+# apparmor
+"${HOME}/.agents/" r,
+"${HOME}/.agents/**" rmk,
+deny "${HOME}/.agents/**" wl,
+
+# mounts.args
+--ro-bind
+${HOME}/.agents
+${HOME}/.agents
+```
+
+Argument files contain one argument per line. Spaces are preserved; blank lines
+and whole-line comments are ignored. Do not add shell quotes. Only `${HOME}`,
+`${UID}`, `${DISPLAY}`, `${WAYLAND_DISPLAY}`, `${XAUTHORITY}`,
+`${XDG_RUNTIME_DIR}`, and `${DBUS_SESSION_BUS_ADDRESS}` expand. No shell text is
+evaluated. Optional bind variants are omitted when a referenced session variable is empty.
+Other missing desktop variables expand to empty strings; the runtime-dir
+and bus-address defaults use the calling user's `/run/user/<uid>`.
+
+Supported arguments are native bind variants, `--dir`, `--tmpfs`, `--dev`,
+`--setenv`, `--unsetenv`, and `--unshare-ipc`. Command boundaries, namespace
+selection, inherited file descriptors, and privilege settings remain owned by
+the launcher. App argument order is retained. CLI environment overrides follow
+app arguments and the standard environment; final protection mounts follow all
+app mounts.
+
+Bubblewrap has no `--share-ipc` flag. When an app provides `mounts.x11.args` and
+`DISPLAY` is set, the launcher omits its default `--unshare-ipc` so X11 MIT-SHM
+can work. The file may be empty. Put `--unshare-ipc` in its replacement to retain
+isolation in an X11 session. Sessions without DISPLAY remain isolated.
+
+AppArmor files may use native `#include <sandbox/gui>`, `<sandbox/pty>`,
+`<sandbox/browser>`, `<sandbox/display>`, `<sandbox/nested-network-namespace>`,
+and `<sandbox/secret-service>` includes. The renderer expands
+shipped includes into standalone profiles; system AppArmor abstractions remain
+native includes. AppArmor path placeholders are limited to `${HOME}` and `${UID}`.
+Enabling a permission include does not add mounts: declare the matching devices,
+sockets, and environment explicitly in the argument files.
+
+## State and shared protections
+
+`state` lists absolute paths, with `${HOME}` and other supported path placeholders.
+Setup creates these directories as the calling user. The inventory grants no
+file access: writable mounts and AppArmor grants must both be explicit.
+
+Other apps receive automatic denies and masks for inventoried state paths. Apps
+that list the same state path share it. An explicit same-source/same-destination
+`--bind` or `--ro-bind` of the exact state path also exempts that path from
+automatic isolation. A broad parent bind does not exempt nested state.
+
+Shared rules remain under `rules/`: the AppArmor base and feature fragments,
+`firewall.nft`, and `secrets.toml`. Secret directories are denied and masked when
+they exist; secret files receive AppArmor denies. App definitions cannot replace
+these shared protections. Definitions, shared rules, launcher implementation, and their containing
+directories are mounted read-only and denied writes, including beneath broad
+home or project grants.
+
+## Application installation and launch scripts
+
+Application-specific setup lives in `../applications/` and never runs during
+`make install-sandbox` or `sandbox up`. Run the relevant `applications/install APP`
+command first if required. Host setup creates only declared state directories
+and reports missing bind sources; it never downloads code, seeds editor profiles,
+or changes application settings. Executable preparation hooks are rejected.
+
+Launch scripts run through `/bin/sh` inside the sandbox and must support two invocations:
+
+```sh
+#!/bin/sh
+set -eu
+# A CLI --env value, including an empty value, wins over this default.
+case ":${SANDBOX_ENV_OVERRIDES-}:" in
+    *:CODEX_HOME:*) ;;
+    *) export CODEX_HOME="$HOME/.codex" ;;
+esac
+if [ "${1-}" = --sandbox-command ]; then
+    shift
+else
+    set -- "$HOME/.local/share/codex/current/bin/codex" "$@"
+fi
+exec "$@"
+```
+
+Managed PATH wrappers invoke the default launcher and forward arguments. Explicit
+`sandbox --app NAME command ...` invocations pass through the same environment
+setup using the reserved `--sandbox-command` marker. Without a launch script,
+the default payload is Bash and explicit commands run directly. `--env NAME=value`
+and `--directory PATH` keep their existing CLI behavior.
+
+Apps with launch scripts receive a wrapper named after the app unless `wrappers`
+lists different names. Native desktop entries retain their IDs, metadata, field
+codes, and actions; installation rewrites their Exec commands through the managed
+wrapper and preserves original entries for rollback.
+
+## Personal replacements
+
+Place native replacement files under `~/.config/sandbox/apps/<app>/`. A local
+file replaces the corresponding public file in full; omitted files inherit.
+Empty files intentionally remove public content. Local entries cannot introduce
+unknown apps or replace shared protections. There is no field-specific merging.
+Legacy app tables and `local.toml` are rejected; no conversion code is retained.
+
+Changes to effective definitions, implementation, app membership, or shared rules
+invalidate the installed fingerprint. App ordering determines namespace address
+allocation. Run `sudo sandbox up` after policy edits, then restart apps.
+The launcher refuses stale installed policy.
+
+## Brave and network modes
+
+Brave Browser has its own `brave` definition, PATH wrapper, and desktop entry.
+Its profile is `~/.local/share/sandbox/brave`; the original browser profile stays
+hidden. Its home is masked before mounting its profile, `~/Downloads`, and
+`~/dev` read/write. Other personal files and application state stay hidden or
+denied. Existing secret-path denies also apply, including through symlinks.
+Files readable in Downloads or dev can be uploaded by a compromised browser.
+The sandbox does not prevent disclosure of files explicitly made available.
+
+Run `applications/install brave`, then install sandbox integration and host
+policy. Chromium's internal sandbox stays enabled. Desktop launches use the
+isolated profile rather than an existing host browser. Only display sockets and
+GPU devices are shared; the desktop bus is not exposed. Prefer Wayland: X11
+provides weaker isolation from other applications in the same display session.
+
+An optional `network` file containing `web` enables public TCP ports 80 and 443.
+Its endpoint file must be empty. The firewall rejects host, private, link-local,
+and reserved IPv4 destinations. IPv6 is disabled in each app namespace, and
+other direct traffic, including QUIC, is blocked. HTTPS falls back to TCP.
+DNS uses the existing forwarder. Host IPv4 forwarding is enabled when installing
+web policy; unrelated host forwarding rules remain owned by the host.
+
+Without `network`, exact-hostname HTTPS restrictions remain unchanged. Empty
+endpoints select offline mode. `sudo sandbox --app brave --offline COMMAND`
+also selects a private network namespace regardless of the configured mode.
+Close running sandbox applications before installing changed policy: setup
+refuses address reassignment while affected namespaces contain processes.
+
+Orca's endpoint list is unchanged. GitHub updates are acceptable; private updater
+origins are not added. Cached release metadata identifies GitHub as the update
+provider, but installed policy, live confinement, and proxy logs must be checked
+on the host before attributing an update notice to network access.
+
+## Verification
+
+```sh
+make test
+make install-sandbox
+sudo sandbox up
+bash sandbox/tests/test_sandbox.sh --installed
+```
+
+Application setup is separate; run the relevant `applications/install APP` before
+sandbox installation when needed. Host setup validates required bind sources.
+
+`make test` aggregates application installer tests and sandbox checks. Every app
+directory gets the same declaration, launch, environment-override, state-isolation,
+and desktop-action contracts. Additional checks exercise declared capabilities.
+Installer tests live separately with application code. No real GUI applications
+are launched by the local suite.
+
+`bash sandbox/tests/test_sandbox.sh --installed` checks every configured app on
+an already prepared host; `--app NAME` filters the selection. Boundary probes
+verify identity, capabilities, AppArmor inheritance, readable/writable paths,
+configuration protection, state isolation, and the declared network mode.
+Missing host prerequisites are reported separately from failed boundary checks.
+The GUI portal probe sends a malformed request and never opens a file dialog.

@@ -1,0 +1,52 @@
+# Filesystem grants. Secret and other-app state denies take precedence.
+# rwklmix: read, write, lock, link, executable mapping, and inherited execution.
+# rmk: read, executable mapping, and file locking; write/link denies stay explicit.
+  "${HOME}/.config/opencode/" r,
+  "${HOME}/.config/opencode/**" rwklmix,
+
+  # Create mountpoints in Bubblewrap's temporary root.
+  "/newroot${HOME}/.config/opencode/" rw,
+  "/newroot${HOME}/.config/opencode/**/" rw,
+
+  "${HOME}/.local/share/opencode/" r,
+  "${HOME}/.local/share/opencode/**" rwklmix,
+  "/newroot${HOME}/.local/share/opencode/" rw,
+  "/newroot${HOME}/.local/share/opencode/**/" rw,
+
+  "${HOME}/.local/state/opencode/" r,
+  "${HOME}/.local/state/opencode/**" rwklmix,
+  "/newroot${HOME}/.local/state/opencode/" rw,
+  "/newroot${HOME}/.local/state/opencode/**/" rw,
+
+  "${HOME}/.cache/opencode/" r,
+  "${HOME}/.cache/opencode/**" rwklmix,
+  "/newroot${HOME}/.cache/opencode/" rw,
+  "/newroot${HOME}/.cache/opencode/**/" rw,
+
+  "${HOME}/.local/share/sandbox/gh/" r,
+  "${HOME}/.local/share/sandbox/gh/**" rwklmix,
+  "/newroot${HOME}/.local/share/sandbox/gh/" rw,
+  "/newroot${HOME}/.local/share/sandbox/gh/**/" rw,
+
+  "${HOME}/.config/sigrid/" r,
+  "${HOME}/.config/sigrid/**" rwklmix,
+  "/newroot${HOME}/.config/sigrid/" rw,
+  "/newroot${HOME}/.config/sigrid/**/" rw,
+
+  "${HOME}/.opencode/" r,
+  "${HOME}/.opencode/**" rmk,
+  deny "${HOME}/.opencode/**" wl,
+
+  "${HOME}/.agents/" r,
+  "${HOME}/.agents/**" rmk,
+  deny "${HOME}/.agents/**" wl,
+
+  "${HOME}/.local/share/sigrid/" r,
+  "${HOME}/.local/share/sigrid/**" rmk,
+  deny "${HOME}/.local/share/sigrid/**" wl,
+
+  "${HOME}/.local/share/sandbox/runtimes/sigrid/" r,
+  "${HOME}/.local/share/sandbox/runtimes/sigrid/**" rmk,
+  deny "${HOME}/.local/share/sandbox/runtimes/sigrid/**" wl,
+
+#include <sandbox/secret-service>

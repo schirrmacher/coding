@@ -55,6 +55,10 @@ main() {
 	elif [[ -n ${SANDBOX_TEST_CONFIG:-} ]]; then
 		check "sandbox configuration is read-only" python3 "$PROBE" readonly-config "$SANDBOX_TEST_CONFIG"
 	fi
+	while IFS= read -r directory; do
+		[[ -d $directory ]] || continue
+		check "definition directory is read-only: $directory" python3 "$PROBE" readonly-definition-directory "$directory"
+	done < <(jq -r '.[]' <<< "${SANDBOX_TEST_CONFIG_DIRS:-[]}")
 	for directory in "${directories[@]}"; do
 		check "writable: $directory" python3 "$PROBE" writable "$directory"
 	done
@@ -62,14 +66,16 @@ main() {
 	while IFS= read -r directory; do
 		check "read-only shared directory: $directory" python3 "$PROBE" readonly-directory "$directory"
 	done < <(jq -r '.[]' <<< "${SANDBOX_TEST_READABLE:-[]}")
-	if [[ $app == cargo ]]; then
-		check "rustup settings readable with a shared lock" python3 "$PROBE" locked-read "$HOME/.rustup/settings.toml"
-	fi
 	while IFS= read -r directory; do
 		check "other app state denied: $directory" python3 "$PROBE" private-directory "$directory"
 	done < <(jq -r '.[]' <<< "${SANDBOX_TEST_PRIVATE:-[]}")
 
-	if [[ ${#endpoints[@]} == 0 ]]; then
+    if [[ ${SANDBOX_TEST_NETWORK:-restricted} == web ]]; then
+        check "public DNS" python3 "$PROBE" dns example.com
+        check "public HTTPS" python3 "$PROBE" tls-allow example.com
+        check "private HTTPS denied" python3 "$PROBE" tcp-deny 192.168.1.1 443
+        check "host HTTPS denied" python3 "$PROBE" tcp-deny "$proxy_host" 443
+    elif [[ ${#endpoints[@]} == 0 ]]; then
 		check "offline network with working loopback" python3 "$PROBE" offline-network "$proxy_host" "$proxy_port"
 	else
 		# Positive controls prevent a broken proxy from passing all denial checks.

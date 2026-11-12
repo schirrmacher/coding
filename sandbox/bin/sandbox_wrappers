@@ -5,7 +5,7 @@ set -euo pipefail
 
 SANDBOX_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 CONFIG="$SANDBOX_ROOT/sandbox.toml"
-source "$SANDBOX_ROOT/lib/query_config.sh"
+source "$SANDBOX_ROOT/lib/read_definitions.sh"
 LAUNCHER="$SANDBOX_ROOT/bin/sandbox"
 BIN_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
@@ -14,9 +14,7 @@ BACKUP_DIR="$HOME/.local/share/sandbox/original-launchers"
 DESKTOP_BACKUP_DIR="$HOME/.local/share/sandbox/original-desktop-entries"
 SYSTEM_DESKTOP_DIR=/usr/share/applications
 
-source "${SANDBOX_ROOT}/lib/install/desktop.sh"
-source "${SANDBOX_ROOT}/lib/install/files.sh"
-source "${SANDBOX_ROOT}/lib/install/prepare.sh"
+source "${SANDBOX_ROOT}/lib/install_launchers.sh"
 
 main() {
 	if [[ $(uname -s) != Linux ]]; then
@@ -55,7 +53,7 @@ generate_launchers() {
 }
 
 remove_stale_launchers() {
-	mapfile -t MANAGED_FILES < <(config_query -r '.apps[] | select(.cmd != null) | .wrapper_name // .name')
+	mapfile -t MANAGED_FILES < <(config_query -r '.apps[].wrappers[]')
 	remove_stale "$BIN_DIR" ''
 	mapfile -t MANAGED_FILES < <(desktop_filenames)
 	remove_stale "$DESKTOP_DIR" '.desktop'
@@ -80,22 +78,20 @@ install_host_integration() {
 }
 
 write_wrapper() {
-	local app=$1
-	local wrapper_name
-	wrapper_name=$(config_query -r --arg app "$app" 'first(.apps[] | select(.name == $app)) | .wrapper_name // .name')
-	[[ $wrapper_name =~ ^[a-z][a-z0-9-]*$ ]] || return 1
+	local app=$1 wrapper_name path names
+	names=$(config_query -r --arg app "$app" 'first(.apps[] | select(.name == $app)).wrappers[]') || return 1
 	local -a command=()
 	mapfile -t command < <(app_cmd "$app")
-	local path="$BIN_DIR/$wrapper_name"
-    local executable
-    executable=$(policy_query executable "$app") || return 1
-	preserve_launcher "$path" "$executable" || return 1
-	install_from_stdin "$path" executable <<EOF
+	for wrapper_name in $names; do
+		path="$BIN_DIR/$wrapper_name"
+		preserve_launcher "$path" "" || return 1
+		install_from_stdin "$path" executable <<EOF
 #!/usr/bin/env bash
 # $MARKER wrapper for app "$app" — regenerate with make install
 exec sudo -n $(quoted_cmd "$LAUNCHER" --app "$app") $(quoted_cmd "${command[@]}")"\$@"
 EOF
-	echo "  $path"
+		echo "  $path"
+	done
 }
 
 app_cmd() {

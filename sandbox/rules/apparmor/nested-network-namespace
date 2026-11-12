@@ -1,0 +1,3 @@
+  # Nested sandbox launchers configure loopback inside their own network namespace.
+  # Kernel capability checks still restrict this permission to owned namespaces.
+  capability net_admin,

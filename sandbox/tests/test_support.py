@@ -17,6 +17,7 @@ def load_module(name, path):
     spec = importlib.util.spec_from_file_location(name, path)
     module = importlib.util.module_from_spec(spec)
     sys.path.insert(0, str(path.parent))
+    sys.modules[name] = module
     try:
         spec.loader.exec_module(module)
     finally:
@@ -26,39 +27,56 @@ def load_module(name, path):
 
 def run_bash(script):
     return subprocess.run(
-        ["bash", "-c", "set -euo pipefail\n" + script], text=True, capture_output=True,
+        ["bash", "--noprofile", "--norc", "-c", "set -euo pipefail\n" + script], text=True, capture_output=True,
         env=isolated_environment(),
     )
 
 
-def write_config(path, data):
+def write_global_config(path, data):
+    """Write the three supported global settings for a native fixture."""
     lines = []
-    for key, value in data.items():
-        if value is not None and not isinstance(value, dict) and key not in ("apps", "directories"):
-            lines.append(f"{key} = {json.dumps(value)}")
+    if "default" in data:
+        lines.append(f'default = {json.dumps(data["default"])}')
+    for table in ("net", "proxy"):
+        if table in data:
+            lines.append(f"[{table}]")
+            lines.extend(f"{name} = {json.dumps(value)}" for name, value in data[table].items())
+    Path(path).write_text("\n".join(lines) + "\n")
 
-    for key, value in data.items():
-        if not isinstance(value, dict):
-            continue
-        lines.append(f"[{key}]")
-        lines.extend(
-            f"{name} = {json.dumps(item)}"
-            for name, item in value.items()
-            if item is not None
-        )
 
-    for key in ("apps", "directories"):
-        for app in data.get(key, []):
-            lines.append(f"[[{key}]]")
-            lines.extend(
-                f"{name} = {json.dumps(item)}"
-                for name, item in app.items()
-                if item is not None and not isinstance(item, dict)
-            )
+def write_config(path, data):
+    """Small native fixtures for command, mount and feature contracts."""
+    import shlex
+    apps = {}
+    for app in data["apps"]:
+        files = {"endpoints": "\n".join(app.get("endpoints", []))}
+        mounts = []
+        for mode, option in (("write", "--bind"), ("read", "--ro-bind")):
+            for directory in app.get("dir", {}).get(mode, app.get("dir." + mode, [])):
+                mounts.extend((option, directory, directory))
+        files["mounts.args"] = "\n".join(mounts)
+        files["apparmor"] = "\n".join(
+            f"#include <sandbox/{fragment}>" for key, fragment in
+            (("gui", "gui"), ("pty", "pty"), ("browser", "browser"), ("sigrid", "secret-service"))
+            if app.get(key))
+        if "cmd" in app:
+            command = shlex.join(app["cmd"])
+            files["launch.sh"] = ('#!/bin/sh\nif [ "${1-}" = --sandbox-command ]; then\n'
+                                  'shift\nelse\nset -- ' + command + ' "$@"\nfi\nexec "$@"\n')
+        apps[app["name"]] = files
+    native_config(path, apps, **{key: value for key, value in data.items() if key != "apps"})
 
-            for name, table in app.items():
-                if isinstance(table, dict):
-                    lines.append(f"[{key}.{name}]")
-                    lines.extend(f"{field} = {json.dumps(value)}" for field, value in table.items())
 
-    path.write_text("\n".join(lines) + "\n")
+def native_config(path, apps, **settings):
+    """Write native app files directly for loader and launcher contract tests."""
+    path = Path(path)
+    root = path.parent / "apps"
+    root.mkdir(exist_ok=True)
+    for name, files in apps.items():
+        directory = root / name
+        directory.mkdir(exist_ok=True)
+        for filename, text in {"apparmor": "", "mounts.args": "", "endpoints": "", **files}.items():
+            (directory / filename).write_text(text)
+    write_global_config(path, {"default": next(iter(apps)), "net": {"subnet": "10.77.0.0/24"},
+                              "proxy": {"sni_port": 3128, "dns_port": 53}, **settings})
+    return path

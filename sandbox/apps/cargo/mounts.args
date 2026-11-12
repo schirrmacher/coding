@@ -1,0 +1,15 @@
+--bind
+${HOME}/.local/share/sandbox/cargo
+${HOME}/.local/share/sandbox/cargo
+--ro-bind
+${HOME}/.cargo/bin
+${HOME}/.cargo/bin
+--ro-bind
+${HOME}/.rustup
+${HOME}/.rustup
+--ro-bind
+/usr/include
+/usr/include
+--ro-bind
+/usr/libexec/gcc
+/usr/libexec/gcc

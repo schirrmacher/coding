@@ -1,0 +1,15 @@
+# Filesystem grants. Secret and other-app state denies take precedence.
+# rwklmix: read, write, lock, link, executable mapping, and inherited execution.
+# rmk: read, executable mapping, and file locking; write/link denies stay explicit.
+  "${HOME}/.local/share/sandbox/vscode/" r,
+  "${HOME}/.local/share/sandbox/vscode/**" rwklmix,
+
+  # Create mountpoints in Bubblewrap's temporary root.
+  "/newroot${HOME}/.local/share/sandbox/vscode/" rw,
+  "/newroot${HOME}/.local/share/sandbox/vscode/**/" rw,
+
+  "/usr/share/code/" r,
+  "/usr/share/code/**" rmk,
+  deny "/usr/share/code/**" wl,
+
+#include <sandbox/gui>

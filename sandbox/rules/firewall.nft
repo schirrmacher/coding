@@ -1,0 +1,48 @@
+# Replacing the table in one transaction avoids a gap in filtering.
+add table ip sandbox
+delete table ip sandbox
+table ip sandbox {
+    set web_sources {
+        type ipv4_addr
+        elements = { @WEB_SOURCES@ }
+    }
+
+    set non_public {
+        type ipv4_addr
+        flags interval
+        elements = { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10,
+                     127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12,
+                     192.0.0.0/24, 192.0.2.0/24, 192.168.0.0/16,
+                     198.18.0.0/15, 198.51.100.0/24, 203.0.113.0/24,
+                     224.0.0.0/4, 240.0.0.0/4 }
+    }
+
+    chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+        # Browsers use direct public HTTP/HTTPS; other apps require approved SNI.
+        ip saddr @web_sources return
+        ip saddr @POOL_CIDR@ tcp dport 443 redirect to :@SNI_PORT@
+    }
+
+    chain input {
+        type filter hook input priority 10; policy accept;
+        ip saddr @POOL_CIDR@ tcp dport @SNI_PORT@ accept
+        ip saddr @POOL_CIDR@ udp dport @DNS_PORT@ accept
+        ip saddr @POOL_CIDR@ tcp dport @DNS_PORT@ accept
+        ip saddr @POOL_CIDR@ counter drop
+    }
+
+    chain forward {
+        type filter hook forward priority 10; policy accept;
+        ip saddr @web_sources ip daddr @non_public counter drop
+        ip saddr @web_sources tcp dport { 80, 443 } accept
+        ip daddr @web_sources ct state established,related accept
+        ip daddr @POOL_CIDR@ counter drop
+        ip saddr @POOL_CIDR@ counter drop
+    }
+
+    chain postrouting {
+        type nat hook postrouting priority srcnat; policy accept;
+        ip saddr @web_sources tcp dport { 80, 443 } masquerade
+    }
+}

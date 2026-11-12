@@ -8,14 +8,14 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from test_support import isolated_environment, ROOT, load_module, write_config
+from test_support import isolated_environment, ROOT, load_module, write_config, native_config
 
 RUNNER = ROOT / "tests/test_sandbox.sh"
 probe = load_module("boundary_probe", ROOT / "tests/boundary/boundary_probe.py")
 
 
 def shell(script):
-    return subprocess.run(["bash", "-c", script], text=True, capture_output=True, env=isolated_environment())
+    return subprocess.run(["bash", "--noprofile", "--norc", "-c", script], text=True, capture_output=True, env=isolated_environment())
 
 
 class RunnerTests(unittest.TestCase):
@@ -25,7 +25,11 @@ class RunnerTests(unittest.TestCase):
         script += "installed_checks() { printf 'apps:%s\\n' \"${APPS[*]}\"; return 0; }\n"
         if config:
             script += f"CONFIG={shlex.quote(str(config))}\n"
-        return shell(script + overrides + f"\nmain {args}")
+            return shell(script + overrides + f"\nmain {args}")
+        with tempfile.TemporaryDirectory() as temporary:
+            config = native_config(Path(temporary) / "sandbox.toml", {"photocraft": {}})
+            script += f"CONFIG={shlex.quote(str(config))}\n"
+            return shell(script + overrides + f"\nmain {args}")
 
     def test_help_and_invalid_options(self):
         result = subprocess.run([str(RUNNER), "--help"], text=True, capture_output=True, cwd="/tmp")

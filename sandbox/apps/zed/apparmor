@@ -1,0 +1,25 @@
+# Filesystem grants. Secret and other-app state denies take precedence.
+# rwklmix: read, write, lock, link, executable mapping, and inherited execution.
+# rmk: read, executable mapping, and file locking; write/link denies stay explicit.
+  "${HOME}/.config/zed/" r,
+  "${HOME}/.config/zed/**" rwklmix,
+
+  # Create mountpoints in Bubblewrap's temporary root.
+  "/newroot${HOME}/.config/zed/" rw,
+  "/newroot${HOME}/.config/zed/**/" rw,
+
+  "${HOME}/.local/share/zed/" r,
+  "${HOME}/.local/share/zed/**" rwklmix,
+  "/newroot${HOME}/.local/share/zed/" rw,
+  "/newroot${HOME}/.local/share/zed/**/" rw,
+
+  "${HOME}/.cache/zed/" r,
+  "${HOME}/.cache/zed/**" rwklmix,
+  "/newroot${HOME}/.cache/zed/" rw,
+  "/newroot${HOME}/.cache/zed/**/" rw,
+
+  "${HOME}/.local/zed.app/" r,
+  "${HOME}/.local/zed.app/**" rmk,
+  deny "${HOME}/.local/zed.app/**" wl,
+
+#include <sandbox/gui>

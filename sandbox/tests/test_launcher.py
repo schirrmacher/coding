@@ -1,221 +1,97 @@
-"""Payload arguments, environment, mounts, and launch prerequisites."""
+"""Launch plans preserve native argument order and final protection layers."""
 import json
 import shlex
-import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from test_support import ROOT, load_module, native_config, run_bash
 
-from test_support import isolated_environment, ROOT, load_module, write_config
-
-
-def bash(functions, command):
-    script = "set -euo pipefail\n" + functions + "\n" + command
-    return subprocess.run(["bash", "-c", script], text=True, capture_output=True, env=isolated_environment())
+loader = load_module("launch_native_loader", ROOT / "lib/read_definitions.py")
 
 
 class LauncherTests(unittest.TestCase):
-    def test_env_values_preserve_equals_and_spaces(self):
-        functions = "source " + shlex.quote(str(ROOT / "bin/sandbox"))
-        script = '''ENV_ARGS=(); DIRECTORY_ARGS=(); CMD=()
-export TEST_VALUE='two words'
-parse_args --env TEST_VALUE --env 'TOKEN=a=b c' echo --env untouched
-printf '%s\\n' "${ENV_ARGS[@]}" "${CMD[@]}"'''
-        result = bash(functions, script)
+    def test_env_values_preserve_equals_spaces_and_option_like_values(self):
+        result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+ENV_ARGS=(); DIRECTORY_ARGS=(); CMD=()
+parse_args --env 'TOKEN=a=b c' --env 'LITERAL=--setenv' echo --env untouched
+printf '%s\\0' "${{ENV_ARGS[@]}}" "${{CMD[@]}}"
+''')
         self.assertEqual(result.returncode, 0, result.stderr)
-        expected_arguments = [
-            "--setenv", "TEST_VALUE", "two words",
-            "--setenv", "TOKEN", "a=b c",
-            "echo", "--env", "untouched",
-        ]
-        self.assertEqual(result.stdout.splitlines(), expected_arguments)
+        self.assertEqual(result.stdout.split("\0")[:-1], ["--setenv", "TOKEN", "a=b c", "--setenv", "LITERAL", "--setenv", "echo", "--env", "untouched"])
 
-
-    def test_payload_preserves_gui_environment_and_mount_order(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory)
-            workspace = path / "work with spaces"
-            workspace.mkdir()
-            shared = workspace / "shared skills"
-            shared.mkdir()
-            state = path / "codex state"
+    def test_native_mounts_precede_masks_and_protected_definitions(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            state = root / "state"
             state.mkdir()
-            config = path / "config.toml"
-            config_data = {
-                "apps": [
-                    {
-                        "name": "demo",
-                        "gui": True,
-                        "dir.write": [str(workspace)],
-                        "codex_home": str(state),
-                        "dir.read": [str(shared)],
-                    },
-                ],
-            }
-            write_config(config, config_data)
-            runtime = path / "runtime.json"
-            runtime_data = {"apps": [{"name": "demo", "ip": "10.77.0.1"}], "proxy": {"sni_port": 3128}}
-            runtime_data["policy_fingerprint"] = load_module("config_loader", ROOT / "lib/load_config.py").read_config(config, ROOT / "tests/absent_local.toml")["policy_fingerprint"]
-            runtime.write_text(json.dumps(runtime_data))
-            ip = path / "ip"
-            ip.write_text(
-                "#!/bin/bash\n"
-                "if [[ $2 == list ]]; then\n"
-                "    echo 'sandbox-demo (id: 1)'\n"
-                "else\n"
-                "    printf '%s\\0' \"$@\"\n"
-                "fi\n"
-            )
-            ip.chmod(0o755)
-            script = f'''
-CONFIG={shlex.quote(str(config))}; PROXY_CONFIG={shlex.quote(str(runtime))}
-export PATH={shlex.quote(str(path))}:$PATH DISPLAY=:test WAYLAND_DISPLAY=wayland-test
-export XDG_RUNTIME_DIR='/run/user/test session' DBUS_SESSION_BUS_ADDRESS='unix:path=/run/user/test/bus'
-SUDO_UID=$(id -u); SUDO_GID=$(id -g)
-aa-exec() {{ return 0; }}
-APP=demo; DIRECTORY_ARGS=(); ENV_ARGS=(); CMD=()
-parse_args --env 'EXPLICIT=two words=a=b' echo 'payload argument'
-run_payload
-'''
-            result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox")), script)
+            path = native_config(root / "sandbox.toml", {
+                "demo": {"mounts.args": f"--bind\n{root}\n{root}\n--setenv\nTOKEN\napp-value\n"},
+                "other": {"state": str(state)}})
+            result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+CONFIG={shlex.quote(str(path))}; APP=demo; HOME_DIR={shlex.quote(str(root))}
+CMD=(/bin/echo 'two words'); ENV_ARGS=(--setenv TOKEN cli-value --setenv LITERAL --setenv)
+prepare_mounts_and_environment
+NS=sandbox-demo; SUDO_UID=$(id -u); SUDO_GID=$(id -g); WORKING_DIRECTORY=/tmp
+DIRECTORIES=(); PROXY_HOST=10.77.0.1; PROXY_PORT=3128; AA_EXEC=()
+build_launch_command
+printf '%s\\0' "${{LAUNCH_COMMAND[@]}}"
+''')
             self.assertEqual(result.returncode, 0, result.stderr)
-            arguments = result.stdout.rstrip("\0").split("\0")
-            self.assertEqual(arguments[:3], ["netns", "exec", "sandbox-demo"])
-            self.assertLess(arguments.index("--clearenv"), arguments.index("DISPLAY"))
-            self.assertNotIn("--unshare-ipc", arguments)
-            device_index = arguments.index("--dev-bind-try")
-            self.assertEqual(arguments[device_index + 1:device_index + 3], ["/dev/dri"] * 2)
-            display_index = arguments.index("DISPLAY")
-            self.assertEqual(arguments[display_index + 1], ":test")
-            runtime_index = arguments.index("XDG_RUNTIME_DIR")
-            self.assertEqual(arguments[runtime_index + 1], "/run/user/test session")
-            session_index = arguments.index("DBUS_SESSION_BUS_ADDRESS")
-            self.assertEqual(arguments[session_index + 1], "unix:path=/run/user/test/bus")
-            explicit_index = arguments.index("EXPLICIT")
-            self.assertEqual(arguments[explicit_index + 1], "two words=a=b")
-            self.assertEqual(arguments[-3:], ["--", "echo", "payload argument"])
-            self.assertLess(arguments.index("--ro-bind"), arguments.index("--bind"))
-            bind_index = arguments.index("--bind")
-            self.assertEqual(arguments[bind_index + 1:bind_index + 3], [str(workspace)] * 2)
-            home_index = arguments.index("CODEX_HOME")
-            self.assertEqual(arguments[home_index + 1], str(state))
-            self.assertEqual(arguments[home_index - 1], "--setenv")
-            self.assertIn(str(state), arguments)
-            self.assertGreater(home_index, arguments.index("--clearenv"))
-            readonly_index = arguments.index("--ro-bind", arguments.index("--ro-bind") + 1)
-            self.assertEqual(arguments[readonly_index + 1:readonly_index + 3], [str(shared)] * 2)
-            self.assertGreater(readonly_index, bind_index)
-            config_index = arguments.index(str(config))
-            self.assertEqual(arguments[config_index - 1:config_index + 2],
-                             ["--ro-bind", str(config), str(config)])
-            self.assertGreater(config_index, arguments.index("--bind-try"))
+            args = result.stdout.split("\0")[:-1]
+            self.assertIn("--unshare-net", args)
+            bind = args.index("--bind")
+            self.assertEqual(args[bind + 1:bind + 3], [str(root)] * 2)
+            mask = next(index for index in range(len(args) - 1) if args[index:index + 2] == ["--tmpfs", str(state)])
+            config = args.index(str(path))
+            self.assertLess(bind, mask)
+            self.assertLess(mask, config)
+            self.assertEqual(args[-3:], ["--", "/bin/echo", "two words"])
+            self.assertEqual(args[args.index("SANDBOX_ENV_OVERRIDES") + 1], "TOKEN:LITERAL")
+            values = [args[index + 2] for index in range(len(args) - 2) if args[index:index + 2] == ["--setenv", "TOKEN"]]
+            self.assertEqual(values, ["app-value", "cli-value"])
 
-
-    def test_only_x11_gui_apps_share_the_display_servers_ipc_namespace(self):
-        for gui, display, isolated in ((True, ":0", False), (True, "", True), (False, ":0", True)):
-            with self.subTest(gui=gui, display=display):
-                with tempfile.TemporaryDirectory() as directory:
-                    config = Path(directory) / "config.toml"
-                    write_config(config, {"apps": [{"name": "demo", "gui": gui, "endpoints": []}]})
-                    script = f'''CONFIG={shlex.quote(str(config))}; APP=demo
-SUDO_UID=$(id -u); HOME_DIR={shlex.quote(directory)}
-DISPLAY={shlex.quote(display)}; ENV_ARGS=()
-canonical_config_path() {{ echo "$CONFIG"; }}
-config_paths() {{ echo "$CONFIG"; }}
-app_readable_directories() {{ :; }}
+    def test_x11_file_shares_ipc_only_when_display_is_present(self):
+        for enabled, display in ((True, ":0"), (True, ""), (False, ":0")):
+            with self.subTest(enabled=enabled, display=display), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                files = {"mounts.x11.args": ""} if enabled else {}
+                path = native_config(root / "sandbox.toml", {"demo": files})
+                result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+CONFIG={shlex.quote(str(path))}; APP=demo; HOME_DIR={shlex.quote(str(root))}
+DISPLAY={shlex.quote(display)}; CMD=(); ENV_ARGS=()
 prepare_mounts_and_environment
 printf '%s' "${{IPC_ARGS[*]}}"
-'''
-                    result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox")), script)
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(result.stdout, "--unshare-ipc" if isolated else "")
+''')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout, "" if enabled and display else "--unshare-ipc")
 
-    def test_config_mount_survives_directory_overrides_for_every_app(self):
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory)
-            config = path / "config with spaces.toml"
-            override = path / "override"
-            override.mkdir()
-            apps = ["orca", "claude", "codex", "vscode", "opencode", "future-app"]
-            write_config(config, {"apps": [{"name": app, "dir.write": [str(override)]} for app in apps]})
-            link = path / "config-link.toml"
-            link.symlink_to(config)
-            for app in apps:
-                with self.subTest(app=app):
-                    script = f'''
-CONFIG={shlex.quote(str(link))}; APP={shlex.quote(app)}
-DIRECTORY_ARGS=({shlex.quote(str(override))})
-HOME_DIR={shlex.quote(directory)}
-mapfile -t DIRECTORIES < <(resolve_directories)
+    def test_launch_script_wraps_custom_commands_but_not_its_own_default_invocation(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = native_config(root / "sandbox.toml", {"demo": {"launch.sh": '#!/bin/sh\nexec "$@"\n'}})
+            script = str(root / "apps/demo/launch.sh")
+            for command, expected in (("CMD=()", ["/bin/sh", script]),
+                                      ("CMD=(echo 'two words')", ["/bin/sh", script, "--sandbox-command", "echo", "two words"]),
+                                      (f'CMD=(/bin/sh {shlex.quote(script)} --help)', ["/bin/sh", script, "--help"])):
+                result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+CONFIG={shlex.quote(str(path))}; APP=demo; HOME_DIR={shlex.quote(str(root))}; ENV_ARGS=()
+{command}
 prepare_mounts_and_environment
-printf '%s\\n' "$CONFIG_PATH" "${{DIRECTORIES[@]}}"
-'''
-                    result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox")), script)
-                    self.assertEqual(result.returncode, 0, result.stderr)
-                    self.assertEqual(result.stdout.splitlines(), [str(config), str(override)])
+printf '%s\\0' "${{CMD[@]}}"
+''')
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual(result.stdout.split("\0")[:-1], expected)
 
-
-    def test_missing_config_stops_launch_preparation(self):
-        with tempfile.TemporaryDirectory() as directory:
-            script = f'CONFIG={shlex.quote(directory + "/missing.toml")}\nprepare_mounts_and_environment\necho unexpected'
-            result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox")), script)
+    def test_launch_refuses_stale_installed_policy(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            path = native_config(root / "sandbox.toml", {"demo": {}})
+            runtime = root / "apps.json"
+            runtime.write_text(json.dumps({"policy_fingerprint": "stale", "apps": []}))
+            result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+CONFIG={shlex.quote(str(path))}; PROXY_CONFIG={shlex.quote(str(runtime))}; APP=demo
+ip() {{ echo "sandbox-demo (id: 1)"; }}
+prepare_network
+''')
             self.assertNotEqual(result.returncode, 0)
-            self.assertNotIn("unexpected", result.stdout)
-
-
-    def test_payload_requires_proxy_config_and_apparmor_unless_explicitly_waived(self):
-        functions = "source " + shlex.quote(str(ROOT / "bin/sandbox"))
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory)
-            config = path / "config.toml"
-            config_data = {"apps": [{"name": "demo", "dir.write": [directory]}]}
-            write_config(config, config_data)
-            runtime = path / "runtime.json"
-            runtime_data = {
-                "apps": [{"name": "demo", "ip": "10.77.0.1"}],
-                "proxy": {"sni_port": 3128},
-            }
-            runtime_data["policy_fingerprint"] = load_module("config_loader", ROOT / "lib/load_config.py").read_config(config, ROOT / "tests/absent_local.toml")["policy_fingerprint"]
-            runtime.write_text(json.dumps(runtime_data))
-
-            ip = path / "ip"
-            ip.write_text(
-                "#!/bin/bash\n"
-                "if [[ $2 == list ]]; then\n"
-                "    echo 'sandbox-demo (id: 1)'\n"
-                "else\n"
-                "    printf '%s\\0' \"$@\"\n"
-                "fi\n"
-            )
-            ip.chmod(0o755)
-
-            cases = (
-                (path / "missing.json", 0, 1, "proxy config missing"),
-                (runtime, 0, 1, "AppArmor profile 'sandbox-demo' not loaded"),
-                (runtime, 1, 0, "WARNING: proceeding without the AppArmor profile"),
-            )
-            for runtime_path, allow_no_apparmor, exit_code, message in cases:
-                with self.subTest(runtime=runtime_path.name, waiver=allow_no_apparmor):
-                    script = f'''
-CONFIG={shlex.quote(str(config))}
-PROXY_CONFIG={shlex.quote(str(runtime_path))}
-export PATH={shlex.quote(directory)}:$PATH
-SUDO_UID=$(id -u)
-SUDO_GID=$(id -g)
-SANDBOX_ALLOW_NO_APPARMOR={allow_no_apparmor}
-aa-exec() {{ return 1; }}
-APP=demo
-DIRECTORY_ARGS=()
-ENV_ARGS=()
-CMD=(true)
-run_payload
-'''
-                    result = bash(functions, script)
-                    self.assertEqual(result.returncode, exit_code, result.stderr)
-                    self.assertIn(message, result.stderr)
-                    if exit_code:
-                        self.assertEqual(result.stdout, "")
-                    else:
-                        arguments = result.stdout.rstrip("\0").split("\0")
-                        self.assertEqual(arguments[:3], ["netns", "exec", "sandbox-demo"])
-                        self.assertNotIn("aa-exec", arguments)
+            self.assertIn("installed policy is stale", result.stderr)

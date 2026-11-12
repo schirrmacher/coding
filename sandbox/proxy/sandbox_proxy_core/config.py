@@ -3,7 +3,12 @@ from pathlib import Path
 
 
 class Endpoints:
-    def __init__(self, app: str, entries: list[str]):
+    def __init__(self, app: str, entries: list[str], network: str = "restricted"):
+        self.online = network == "web" or bool(entries)
+        if network not in ("restricted", "web"):
+            raise SystemExit(f"app {app!r} has invalid network mode")
+        if network == "web" and entries:
+            raise SystemExit(f"app {app!r} combines web access with endpoints")
         self.app = app
         if not isinstance(entries, list) or any(
             not isinstance(raw, str) or not raw.strip().rstrip(".") for raw in entries
@@ -26,7 +31,7 @@ def load_proxy_config(config: Path) -> tuple[list[tuple[str, str, Endpoints]], i
     except (OSError, json.JSONDecodeError) as exc:
         raise SystemExit(f"cannot read proxy config {config}: {exc}")
     apps = [
-        (entry["ip"], entry["netns_ip"], Endpoints(entry["name"], entry["endpoints"]))
+        (entry["ip"], entry["netns_ip"], Endpoints(entry["name"], entry["endpoints"], entry.get("network", "restricted")))
         for entry in data["apps"]
     ]
     if not apps:

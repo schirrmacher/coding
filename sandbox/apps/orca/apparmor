@@ -1,0 +1,28 @@
+# Filesystem grants. Secret and other-app state denies take precedence.
+# rwklmix: read, write, lock, link, executable mapping, and inherited execution.
+# rmk: read, executable mapping, and file locking; write/link denies stay explicit.
+  "${HOME}/orca/" r,
+  "${HOME}/orca/**" rwklmix,
+
+  # Create mountpoints in Bubblewrap's temporary root.
+  "/newroot${HOME}/orca/" rw,
+  "/newroot${HOME}/orca/**/" rw,
+
+  "${HOME}/.orca/" r,
+  "${HOME}/.orca/**" rwklmix,
+  "/newroot${HOME}/.orca/" rw,
+  "/newroot${HOME}/.orca/**/" rw,
+
+  "${HOME}/.config/orca/" r,
+  "${HOME}/.config/orca/**" rwklmix,
+  "/newroot${HOME}/.config/orca/" rw,
+  "/newroot${HOME}/.config/orca/**/" rw,
+
+  "${HOME}/.cache/orca/" r,
+  "${HOME}/.cache/orca/**" rwklmix,
+  "/newroot${HOME}/.cache/orca/" rw,
+  "/newroot${HOME}/.cache/orca/**/" rw,
+
+#include <sandbox/gui>
+
+#include <sandbox/nested-network-namespace>

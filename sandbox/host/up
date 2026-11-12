@@ -6,13 +6,13 @@ set -euo pipefail
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 CONFIG="$SCRIPT_DIR/../sandbox.toml"
 PROXY_DIR=/usr/local/lib/sandbox
-source "$SCRIPT_DIR/../lib/query_config.sh"
+source "$SCRIPT_DIR/../lib/read_definitions.sh"
 source "$SCRIPT_DIR/../lib/render_apparmor.sh"
 
-source "$SCRIPT_DIR/../lib/host/network.sh"
-source "$SCRIPT_DIR/../lib/host/policy.sh"
-source "$SCRIPT_DIR/../lib/host/services.sh"
-source "$SCRIPT_DIR/../lib/host/prepare.sh"
+source "$SCRIPT_DIR/../lib/host/configure_network.sh"
+source "$SCRIPT_DIR/../lib/host/install_apparmor_profiles.sh"
+source "$SCRIPT_DIR/../lib/host/install_services.sh"
+source "$SCRIPT_DIR/../lib/host/create_app_state.sh"
 
 main() {
 	[[ $EUID -eq 0 ]] || {
@@ -64,13 +64,20 @@ load_config() {
 	[[ ${#APPS[@]} -le $POOL_CAPACITY ]] \
 		|| die "$CONFIG: $POOL_CAPACITY apps fit in $POOL_CIDR (4 addresses each); found ${#APPS[@]}"
 
+    if [[ -r $PROXY_DIR/apps.json ]] && ! jq -e --arg fingerprint "$(config_query -r '.policy_fingerprint')" '.policy_fingerprint == $fingerprint' "$PROXY_DIR/apps.json" >/dev/null; then
+        local namespace
+        while read -r namespace _; do
+            [[ $namespace == sandbox-* ]] || continue
+            [[ -z $(ip netns pids "$namespace") ]] || die "close sandbox applications before replacing changed policy: $namespace is in use"
+        done < <(ip netns list)
+    fi
 	prepare_app_state
 	validate_app_directories
 }
 
 require_host_commands() {
     local command
-    for command in python3 jq ip nft setpriv bwrap; do
+    for command in python3 jq ip nft setpriv bwrap sysctl; do
         command -v "$command" >/dev/null || die "missing prerequisite: $command"
     done
 }

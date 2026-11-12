@@ -6,13 +6,14 @@ set -euo pipefail
 # Resolve the installed symlink before locating config and scripts.
 SANDBOX_ROOT=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)
 CONFIG="$SANDBOX_ROOT/sandbox.toml"
-source "$SANDBOX_ROOT/lib/query_config.sh"
+source "$SANDBOX_ROOT/lib/read_definitions.sh"
 PROXY_CONFIG=/usr/local/lib/sandbox/apps.json
 PROXY_DIR=/usr/local/lib/sandbox
 
-source "${SANDBOX_ROOT}/lib/launch/mounts.sh"
-source "${SANDBOX_ROOT}/lib/launch/execution.sh"
-source "${SANDBOX_ROOT}/lib/launch/status.sh"
+source "${SANDBOX_ROOT}/lib/launch/resolve_directories.sh"
+source "${SANDBOX_ROOT}/rules/bubblewrap.sh"
+source "${SANDBOX_ROOT}/lib/launch/run_payload.sh"
+source "${SANDBOX_ROOT}/lib/launch/show_status.sh"
 
 main() {
 	read_config || exit 1
@@ -29,6 +30,7 @@ main() {
 	ENV_ARGS=()
 	CMD=()
 
+	OFFLINE=0
 	MODE=run
 	if [[ ${1:-} =~ ^(up|down|status)$ ]]; then
 		MODE=$1
@@ -75,6 +77,10 @@ cmd_down() {
 parse_args() {
 	while [[ $# -gt 0 ]]; do
 		case $1 in
+		--offline)
+			OFFLINE=1
+			shift
+			;;
 		--app)
 			[[ $# -ge 2 ]] || usage
 			APP=$2
@@ -123,7 +129,7 @@ add_env() {
 }
 
 usage() {
-	echo "usage: sudo bin/sandbox [--app NAME] [--directory DIR] [--env VAR[=VAL]]... [up|down|status|CMD [ARGS...]]" >&2
+	echo "usage: sudo bin/sandbox [--app NAME] [--offline] [--directory DIR] [--env VAR[=VAL]]... [up|down|status|CMD [ARGS...]]" >&2
 	exit 1
 }
 
