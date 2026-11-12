@@ -1,0 +1,27 @@
+  #include <abstractions/X>
+  #include <abstractions/fonts>
+  #include <abstractions/wayland>
+  #include <abstractions/dbus-session-strict>
+
+  # Bubblewrap creates this mountpoint before switching to its new root.
+  /newroot/tmp/.X11-unix/ rw,
+
+  # GPU discovery and graphics driver metadata.
+  /dev/ r,
+  /sys/class/drm/{,**} r,
+  /sys/bus/pci/{,**} r,
+  /sys/dev/char/{,**} r,
+  /sys/devices/pci*/{,**} r,
+  /run/udev/data/+{drm,pci}:* r,
+  /run/udev/data/c226:* r,
+
+  /proc/ r,
+  owner /run/user/*/ r,
+
+  # Graphics loaders discover drivers through manifests outside library directories.
+  /etc/{vulkan,glvnd}/{,**} r,
+  /usr/share/{vulkan,glvnd}/{,**} r,
+  /etc/gtk-*/** r,
+  /usr/share/{themes,icons,glib-2.0}/{,**} r,
+  /etc/shells r,
+  /proc/sys/fs/inotify/{max_user_instances,max_user_watches} r,

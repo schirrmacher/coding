@@ -1,0 +1,4 @@
+  owner @{PROC}/@{pid}/{comm,cmdline,status,stat,cwd} r,
+  owner @{PROC}/@{pid}/fd/{,**} r,
+  /dev/pts/{,**} rw,
+  /dev/ptmx rw,

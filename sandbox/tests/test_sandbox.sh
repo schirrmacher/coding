@@ -4,7 +4,7 @@ set -euo pipefail
 
 SANDBOX_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 CONFIG="$SANDBOX_ROOT/sandbox.toml"
-source "$SANDBOX_ROOT/lib/query_config.sh"
+source "$SANDBOX_ROOT/lib/read_definitions.sh"
 LAUNCHER="$SANDBOX_ROOT/bin/sandbox"
 PROXY_CONFIG=/usr/local/lib/sandbox/apps.json
 FIXTURE=
@@ -43,8 +43,8 @@ main() {
 	}
 
 	require_commands python3 jq || return 2
-	read_config || return 2
 	if [[ $installed == 1 ]]; then
+		read_config || return 2
 		config_query -e '.apps | type == "array" and length > 0' >/dev/null || return 2
 		if [[ ${#APPS[@]} == 0 ]]; then
 			mapfile -t APPS < <(config_query -r '.apps[].name')
@@ -84,8 +84,8 @@ main() {
 local_checks() {
 	local failed=0 script
 	for script in "$SANDBOX_ROOT"/bin/* "$SANDBOX_ROOT"/host/* "$SANDBOX_ROOT"/lib/*.sh \
-		"$SANDBOX_ROOT"/lib/launch/*.sh "$SANDBOX_ROOT"/lib/install/*.sh "$SANDBOX_ROOT"/lib/host/*.sh \
-        "$SANDBOX_ROOT"/tests/*.sh "$SANDBOX_ROOT"/tests/boundary/*.sh; do
+		"$SANDBOX_ROOT"/lib/launch/*.sh "$SANDBOX_ROOT"/lib/host/*.sh \
+        "$SANDBOX_ROOT"/rules/*.sh "$SANDBOX_ROOT"/apps/*/*.sh "$SANDBOX_ROOT"/tests/*.sh "$SANDBOX_ROOT"/tests/boundary/*.sh; do
 		if bash -n "$script"; then
 			printf 'PASS syntax: %s\n' "${script#"$SANDBOX_ROOT"/}"
 		else
@@ -136,16 +136,23 @@ installed_checks() {
 	return "$failed"
 }
 
+existing_directories() {
+	local path
+	while IFS= read -r path; do
+		[[ ! -d $path ]] || printf '%s\n' "$path"
+	done
+}
+
 verify_app() {
-	local app=$1 directories endpoints directory readable private codex_home
-	directories=$(app_writable_directories "$app" "$PWD" | jq -Rsc 'split("\n") | map(select(length > 0))')
-	readable=$(app_readable_directories "$app" | jq -Rsc 'split("\n") | map(select(length > 0))')
-	private=$(app_private_directories "$app" | jq -Rsc 'split("\n") | map(select(length > 0))')
-	codex_home=$(app_codex_home "$app")
-	[[ -z $codex_home ]] || codex_home=$(realpath "$codex_home")
+	local app=$1 directories endpoints directory readable private gui network
+	directories=$(app_writable_directories "$app" "$PWD" | existing_directories | jq -Rsc 'split("\n") | map(select(length > 0))')
+	readable=$(app_readable_directories "$app" | existing_directories | jq -Rsc 'split("\n") | map(select(length > 0))')
+	private=$(app_private_directories "$app" | existing_directories | jq -Rsc 'split("\n") | map(select(length > 0))')
+	gui=$(config_query -r --arg app "$app" 'first(.apps[] | select(.name == $app)).apparmor | contains("interface=org.freedesktop.portal.FileChooser")')
+	network=$(config_query -r --arg app "$app" 'first(.apps[] | select(.name == $app)).network // "restricted"')
 	endpoints=$(config_query -c --arg app "$app" 'first(.apps[] | select(.name == $app)).endpoints')
-	if ! jq -e --arg app "$app" --argjson endpoints "$endpoints" '
-		any(.apps[]; .name == $app and
+	if ! jq -e --arg app "$app" --arg network "$network" --argjson endpoints "$endpoints" '
+		any(.apps[]; .name == $app and (.network // "restricted") == $network and
 			(.endpoints | map(ascii_downcase | rtrimstr(".")) | sort) ==
 			($endpoints | map(ascii_downcase | rtrimstr(".")) | sort))' "$PROXY_CONFIG" >/dev/null; then
 		echo "FAIL app $app: missing or stale proxy endpoints"
@@ -164,13 +171,14 @@ verify_app() {
 		sudo -n "$LAUNCHER" --app "$app" \
 		--env "SANDBOX_TEST_CONFIG=$(canonical_config_path)" \
 		--env "SANDBOX_TEST_CONFIGS=$(config_query -c '.config_paths')" \
+		--env "SANDBOX_TEST_CONFIG_DIRS=$(config_query -c '.config_directories')" \
 		--env "SANDBOX_TEST_UID=$(id -u)" \
-        --env "SANDBOX_TEST_GUI=$(policy_query gui "$app")" \
+        --env "SANDBOX_TEST_NETWORK=$network" \
+        --env "SANDBOX_TEST_GUI=$gui" \
 		--env "SANDBOX_TEST_DIRECTORIES=$directories" \
 		--env "SANDBOX_TEST_ENDPOINTS=$endpoints" \
 		--env "SANDBOX_TEST_READABLE=$readable" \
 		--env "SANDBOX_TEST_PRIVATE=$private" \
-		--env "SANDBOX_TEST_CODEX_HOME=$codex_home" \
 		--env "SANDBOX_TEST_FIXTURE=$FIXTURE" \
 		--env 'SANDBOX_TEST_PASSED=two words=a=b' \
 		bash -c '

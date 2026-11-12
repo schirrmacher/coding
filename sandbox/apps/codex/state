@@ -1,0 +1,5 @@
+${HOME}/.codex
+${HOME}/.local/share/sandbox/gh
+${HOME}/.local/share/sandbox/cargo
+${HOME}/.local/share/sandbox/uv
+${HOME}/.config/sigrid

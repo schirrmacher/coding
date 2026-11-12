@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=DeckCraft
+Exec=app %U
+Terminal=false
+Icon=${HOME}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.deckcraft.png
+Categories=Utility;
+StartupWMClass=ai.storyteller.deckcraft

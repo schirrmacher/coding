@@ -1,0 +1,6 @@
+--bind
+${HOME}/.local/share/sandbox/uv
+${HOME}/.local/share/sandbox/uv
+--ro-bind
+${HOME}/.local/share/sandbox/runtimes/uv
+${HOME}/.local/share/sandbox/runtimes/uv

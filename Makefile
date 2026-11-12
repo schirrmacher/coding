@@ -100,5 +100,11 @@ install-sandbox:
 .PHONY: install-apps
 
 install-apps:
-	@python3 $(SANDBOX_DIR)/lib/install_apps.py
-	@$(MAKE) install-sandbox
+	@applications/install craft
+
+.PHONY: test
+test:
+	@result=0; \
+	 bash $(SANDBOX_DIR)/tests/test_sandbox.sh || result=1; \
+	 python3 -m unittest discover -s applications/tests -v || result=1; \
+	 exit $$result

@@ -10,7 +10,7 @@ from test_support import isolated_environment, ROOT, write_config
 
 def bash(functions, command):
     script = "set -euo pipefail\n" + functions + "\n" + command
-    return subprocess.run(["bash", "-c", script], text=True, capture_output=True, env=isolated_environment())
+    return subprocess.run(["bash", "--noprofile", "--norc", "-c", script], text=True, capture_output=True, env=isolated_environment())
 
 
 class WrapperTests(unittest.TestCase):
@@ -69,7 +69,7 @@ bash "$BIN_DIR/demo" 'forwarded value' '''
             self.assertEqual(result.returncode, 0, result.stderr)
             expected_arguments = [
                 "-n", "/sandbox path/launcher", "--app", "demo",
-                *command, "forwarded value",
+                "/bin/sh", str(path / "apps/demo/launch.sh"), "forwarded value",
             ]
             self.assertEqual(result.stdout.splitlines()[1:], expected_arguments)
             wrapper = (path / "demo").read_text()
@@ -145,19 +145,18 @@ export PATH="$BIN_DIR:$PATH"
             self.assertEqual(result.returncode, 23)
 
 
-    def test_desktop_entry_without_original_uses_defaults(self):
-        functions = "source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers"))
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory)
-            config = path / "config.toml"
-            config_data = {"apps": [{"name": "demo", "cmd": ["/nonexistent app", "two words"]}]}
-            write_config(config, config_data)
-            script = f'''CONFIG={str(config)!r}; DESKTOP_DIR={directory!r}
-LAUNCHER='/sandbox launcher'; MARKER=sandbox-managed
-source_desktop_entry() {{ return 0; }}
-write_desktop_entry demo'''
-            result = bash(functions, script)
+    def test_native_desktop_entry_keeps_metadata_and_routes_exec_through_wrapper(self):
+        from test_support import native_config
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary)
+            config = native_config(path / "sandbox.toml", {"demo": {
+                "launch.sh": '#!/bin/sh\nexec /bin/echo "$@"\n',
+                "org.example.Demo.desktop": '[Desktop Entry]\nType=Application\nName=Demo\nExec=demo %U\nIcon=demo\n'}})
+            result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers")), f'''CONFIG={shlex.quote(str(config))}
+DESKTOP_DIR={shlex.quote(str(path))}; BIN_DIR={shlex.quote(str(path / 'bin'))}
+write_desktop_entry demo
+''')
             self.assertEqual(result.returncode, 0, result.stderr)
-            entry = (path / "demo-sandboxed.desktop").read_text()
+            entry = (path / "org.example.Demo.desktop").read_text()
             self.assertIn("Name=Demo", entry)
-            self.assertIn(f'Exec="{Path.home()}/.local/bin/demo" %U', entry)
+            self.assertIn(f'Exec="{path}/bin/demo" %U', entry)

@@ -1,14 +1,10 @@
-"""Private directory grants feed the same file and network policy."""
-import json
-import shlex
+"""Local native files replace public files without field-specific merge rules."""
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from test_support import ROOT, load_module, native_config
 
-from test_support import ROOT, load_module, run_bash, write_config
-
-loader = load_module("local_config", ROOT / "lib/load_config.py")
+loader = load_module("native_local_loader", ROOT / "lib/read_definitions.py")
 
 
 class LocalConfigTests(unittest.TestCase):
@@ -16,151 +12,57 @@ class LocalConfigTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        self.public = self.root / "public.toml"
-        self.private = self.root / "local.toml"
-        self.project = self.root / "project with spaces"
-        self.project.mkdir()
-        self.other = self.root / "other"
-        self.other.mkdir()
-        self.skills = self.project / "skills"
-        self.skills.mkdir()
-        write_config(self.public, {"apps": [
-            {"name": "writer", "endpoints": ["BASE.example."]},
-            {"name": "reader", "endpoints": ["reader.example"]},
-            {"name": "unlisted", "endpoints": ["unlisted.example"]},
-        ]})
+        self.public = native_config(self.root / "sandbox.toml", {"demo": {"endpoints": "public.example\n", "apparmor": "#include <sandbox/browser>\n"}})
+        self.local = self.root / "local-apps"
+        (self.local / "demo").mkdir(parents=True)
 
-    def load(self, entries):
-        write_config(self.private, {"apps": entries})
-        return loader.read_config(self.public, self.private)
+    def test_empty_local_file_removes_public_permissions(self):
+        (self.local / "demo/apparmor").write_text("")
+        data = loader.read_config(self.public, self.local)
+        self.assertEqual(data["apps"][0]["apparmor"], "\n")
+        self.assertEqual(data["apps"][0]["endpoints"], ["public.example"])
 
-    def shell(self, command):
-        return run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
-source {shlex.quote(str(ROOT / 'lib/render_apparmor.sh'))}
-CONFIG={shlex.quote(str(self.public))}
-LOCAL_CONFIG={shlex.quote(str(self.private))}
-APP=writer; DIRECTORY_ARGS=()
-{command}
-''')
+    def test_local_endpoints_replace_and_do_not_append(self):
+        (self.local / "demo/endpoints").write_text("local.example\n")
+        data = loader.read_config(self.public, self.local)
+        self.assertEqual(data["apps"][0]["endpoints"], ["local.example"])
+        (self.local / "demo/endpoints").write_text("")
+        self.assertEqual(loader.read_config(self.public, self.local)["apps"][0]["endpoints"], [])
 
-    def test_all_grants_and_endpoints_are_combined_per_app(self):
-        data = self.load([
-            {"name": "writer", "dir": {"write": [str(self.project), str(self.other)],
-             "read": [str(self.skills)]}, "endpoints": ["PROJECT.example", "base.example", "other.example"]},
-            {"name": "reader", "dir": {"read": [str(self.project)]},
-             "endpoints": ["PROJECT.example", "base.example"]},
-        ])
-        writer, reader, unlisted = data["apps"]
-        self.assertEqual(writer["dir"]["write"], [str(self.project), str(self.other)])
-        self.assertEqual(writer["dir"]["read"], [str(self.skills)])
-        self.assertEqual(writer["endpoints"], ["base.example", "project.example", "other.example"])
-        self.assertEqual(reader["dir"]["read"], [str(self.project)])
-        self.assertEqual(reader["endpoints"], ["reader.example", "project.example", "base.example"])
-        self.assertNotIn("dir", unlisted)
-        self.assertEqual(unlisted["endpoints"], ["unlisted.example"])
+    def test_unknown_local_app_and_unknown_file_fail(self):
+        (self.local / "unknown").mkdir()
+        with self.assertRaisesRegex(ValueError, "unknown local apps"):
+            loader.read_config(self.public, self.local)
+        (self.local / "unknown").rmdir()
+        (self.local / "demo/policy.toml").write_text("")
+        with self.assertRaisesRegex(ValueError, "unknown app file"):
+            loader.read_config(self.public, self.local)
 
-    def test_absent_private_file_has_no_project_fallback(self):
-        data = loader.read_config(self.public, self.private)
-        self.assertEqual(data["config_paths"], [str(self.public)])
-        result = self.shell("resolve_directories")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, "")
+    def test_every_effective_file_and_app_membership_affects_fingerprint(self):
+        first = loader.read_config(self.public, self.local)
+        override = self.local / "demo/endpoints"
+        override.write_text("local.example\n")
+        second = loader.read_config(self.public, self.local)
+        self.assertNotEqual(first["policy_fingerprint"], second["policy_fingerprint"])
+        override.unlink()
+        self.assertEqual(first["policy_fingerprint"], loader.read_config(self.public, self.local)["policy_fingerprint"])
+        native_config(self.public, {"extra": {}})
+        self.assertNotEqual(first["policy_fingerprint"], loader.read_config(self.public, self.local)["policy_fingerprint"])
 
-    def test_default_private_location_uses_account_home(self):
-        private = self.root / ".config/sandbox/local.toml"
-        private.parent.mkdir(parents=True)
-        write_config(private, {"apps": [{"name": "writer", "dir": {"write": ["${HOME}/other"]}}]})
-        with patch.object(loader, "user_home", return_value=str(self.root)):
-            data = loader.read_config(self.public)
-        self.assertEqual(data["apps"][0]["dir"]["write"], [str(self.other)])
-        self.assertEqual(data["config_paths"], [str(self.public), str(private)])
+    def test_replaced_public_content_is_not_an_effective_source(self):
+        (self.local / "demo/endpoints").write_text("local.example\n")
+        before = loader.read_config(self.public, self.local)
+        (self.root / "apps/demo/endpoints").write_text("unused.example\n")
+        after = loader.read_config(self.public, self.local)
+        self.assertEqual(before["policy_fingerprint"], after["policy_fingerprint"])
+        self.assertIn(str(self.local / "demo/endpoints"), after["config_paths"])
+        self.assertIn(str(self.local), after["config_directories"])
 
-    def test_invalid_private_entries_stop_loading(self):
-        cases = [
-            ({"name": "writer", "dir": {"write": ["relative"]}}, "absolute"),
-            ({"name": "unknown"}, "unknown"),
-            ({"name": "writer", "dir": {"read": "writer"}}, "array"),
-            ({"name": "writer", "dir": {"read": [1]}}, "paths"),
-            ({"name": "writer", "endpoints": "example.com"}, "array"),
-            ({"dir": {"write": [str(self.project)]}}, "name"),
-            ({"name": "writer", "unknown": True}, "only"),
-        ]
-        for entry, message in cases:
-            with self.subTest(entry=entry), self.assertRaisesRegex(ValueError, message):
-                self.load([entry])
-        with self.assertRaisesRegex(ValueError, "local.toml"):
-            self.load([{"name": "writer", "dir": {"write": [str(self.root / "missing")]}}])
-        self.private.write_text('directories = [')
-        with self.assertRaisesRegex(ValueError, "local.toml"):
-            loader.read_config(self.public, self.private)
-
-    def test_symlink_aliases_share_one_canonical_grant(self):
-        link = self.root / "link"
-        link.symlink_to(self.project)
-        data = self.load([{"name": "writer", "dir": {"write": [str(self.project), str(link)]}}])
-        self.assertEqual(data["apps"][0]["dir"]["write"], [str(self.project)])
-
-    def test_legacy_directory_schema_is_rejected(self):
-        self.private.write_text("directories = []\n")
-        with self.assertRaisesRegex(ValueError, "no longer supported"):
-            loader.read_config(self.public, self.private)
-
-    def test_both_configs_are_protected_and_nested_readonly_grants_win(self):
-        self.load([{"name": "writer", "dir": {"write": [str(self.project)], "read": [str(self.skills)]}}])
-        result = self.shell('SUDO_UID=$(id -u); app_file_rules writer "$PWD"; prepare_directories; prepare_mounts_and_environment; printf "%s\\n" "${CONFIG_ARGS[@]}"')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        for path in (self.public, self.private):
-            self.assertIn(f'deny "{path}" wkl,', result.stdout)
-            self.assertIn(f'--ro-bind\n{path}\n{path}', result.stdout)
-        self.assertIn(f'deny "{self.skills}/**" wl,', result.stdout)
-
-    def test_directory_flag_changes_cwd_without_narrowing_grants(self):
-        self.load([{"name": "writer", "dir": {"write": [str(self.project), str(self.other)]}}])
-        result = self.shell(f'DIRECTORY_ARGS=({shlex.quote(str(self.skills))}); SUDO_UID=$(id -u); prepare_directories; printf "%s\\n" "$WORKING_DIRECTORY" "${{DIRECTORIES[@]}}"')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.splitlines(), [str(self.skills), str(self.project), str(self.other)])
-        for arguments, message in ((str(self.root), "not allowed"),
-                                   (f'{shlex.quote(str(self.project))} {shlex.quote(str(self.other))}', "only once")):
-            result = self.shell(f'DIRECTORY_ARGS=({arguments}); prepare_directories')
-            self.assertNotEqual(result.returncode, 0)
-            self.assertIn(message, result.stderr)
-
-    def test_stale_policy_rejects_launch_until_runtime_is_regenerated(self):
-        data = self.load([{"name": "writer", "dir": {"write": [str(self.project)]}}])
-        runtime = self.root / "runtime.json"
-        runtime.write_text(json.dumps({"policy_fingerprint": data["policy_fingerprint"],
-                                      "apps": [{"name": "writer", "ip": "10.77.0.1"}],
-                                      "proxy": {"sni_port": 3128}}))
-        command = f'''PROXY_CONFIG={shlex.quote(str(runtime))}
-ip() {{ echo 'sandbox-writer (id: 1)'; }}
-prepare_network
-'''
-        self.assertEqual(self.shell(command).returncode, 0)
-        self.load([{"name": "writer", "dir": {"write": [str(self.project)]}, "endpoints": ["new.example"]}])
-        result = self.shell(command)
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("installed policy is stale", result.stderr)
-
-    def test_host_proxy_generation_uses_combined_endpoints_and_fingerprint(self):
-        data = self.load([{"name": "writer", "dir": {"write": [str(self.project)]},
-                           "endpoints": ["project.example"]}])
-        runtime = self.root / "proxy"
-        result = run_bash(f'''source {shlex.quote(str(ROOT / 'host/up'))}
-CONFIG={shlex.quote(str(self.public))}; LOCAL_CONFIG={shlex.quote(str(self.private))}
-PROXY_DIR={shlex.quote(str(runtime))}; POOL_BASE=10.77.0
-cp() {{ :; }}
-systemctl() {{ :; }}
-install_proxy
-''')
-        self.assertEqual(result.returncode, 0, result.stderr)
-        installed = json.loads((runtime / "apps.json").read_text())
-        self.assertEqual(installed["policy_fingerprint"], data["policy_fingerprint"])
-        self.assertEqual(installed["apps"][0]["endpoints"], ["base.example", "project.example"])
-
-    def test_private_symlink_target_is_protected(self):
-        data = self.load([{"name": "writer", "dir": {"write": [str(self.project)]}}])
-        link = self.root / "private-link.toml"
-        link.symlink_to(self.private)
-        linked = loader.read_config(self.public, link)
-        self.assertEqual(linked["config_paths"], data["config_paths"])
-        self.assertEqual(linked["policy_fingerprint"], data["policy_fingerprint"])
+    def test_desktop_and_shell_scripts_use_the_same_replacement_rule(self):
+        script = self.local / "demo/launch.sh"
+        script.write_text('#!/bin/sh\nexec /bin/echo local "$@"\n')
+        (self.local / "demo/demo.desktop").write_text('[Desktop Entry]\nName=Local\nExec=demo %F\n')
+        data = loader.read_config(self.public, self.local)
+        app = data["apps"][0]
+        self.assertEqual(app["cmd"], ["/bin/sh", str(script)])
+        self.assertIn("Name=Local", app["desktops"]["demo.desktop"])

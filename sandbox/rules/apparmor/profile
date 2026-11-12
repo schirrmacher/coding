@@ -1,0 +1,11 @@
+# Per-app profile: setup substitutes the app and writable directories.
+# Secret denies apply to every child through inherited execution.
+
+#include <tunables/global>
+
+profile sandbox-@SANDBOX_APP@ flags=(attach_disconnected,mediate_deleted) {
+@BASE_RULES@
+@SECRET_RULES@
+
+@DIRECTORY_RULES@
+}

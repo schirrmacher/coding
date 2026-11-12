@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=WordCraft
+Exec=app %U
+Terminal=false
+Icon=${HOME}/.local/share/icons/hicolor/256x256/apps/ai.storyteller.wordcraft.png
+Categories=Utility;
+StartupWMClass=ai.storyteller.wordcraft

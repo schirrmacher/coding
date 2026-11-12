@@ -1,0 +1,23 @@
+# Display, fonts, and GPU access.
+#include <sandbox/display>
+
+  # Desktop accessibility and file selection requests.
+  dbus (send, receive) bus=session peer=(name=org.a11y.Bus),
+  dbus (send) bus=session
+       path=/org/freedesktop/portal/desktop
+       interface=org.freedesktop.portal.FileChooser
+       member={OpenFile,SaveFile,SaveFiles}
+       peer=(name=org.freedesktop.portal.Desktop),
+  dbus (send) bus=session
+       path=/org/freedesktop/portal/desktop
+       interface=org.freedesktop.DBus.Properties member={Get,GetAll}
+       peer=(name=org.freedesktop.portal.Desktop),
+  dbus (send) bus=session
+       path=/org/freedesktop/portal/desktop/request/**
+       interface=org.freedesktop.portal.Request member=Close
+       peer=(name=org.freedesktop.portal.Desktop),
+
+  # Portal signals use the sender's unique bus name, not its public service name.
+  dbus (receive) bus=session
+       path=/org/freedesktop/portal/desktop/request/**
+       interface=org.freedesktop.portal.Request member=Response,

@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=Brave (Sandbox)
+Exec=brave %U
+Icon=brave-browser
+Terminal=false
+Categories=Network;WebBrowser;
+MimeType=text/html;x-scheme-handler/http;x-scheme-handler/https;
+StartupWMClass=brave-browser
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=brave --new-window %U
+
+[Desktop Action new-private-window]
+Name=New Private Window
+Exec=brave --incognito %U

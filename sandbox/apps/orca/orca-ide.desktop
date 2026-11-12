@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Orca
+Exec=app %U
+Terminal=false
+Icon=${HOME}/.local/share/icons/hicolor/256x256/apps/orca-ide.png
+Categories=Utility;
+StartupWMClass=orca

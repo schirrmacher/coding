@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+"""Run an application's installer without configuring or starting a sandbox."""
+import argparse
+import os
+from pathlib import Path
+import sys
+
+
+def main():
+    root = Path(__file__).resolve().parent
+    names = sorted(path.parent.name for path in root.glob('*/install.py'))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('app', choices=names)
+    args, options = parser.parse_known_args()
+    if os.geteuid() == 0:
+        parser.error('run application installation as your normal user')
+    os.execv(sys.executable, [sys.executable, str(root / args.app / 'install.py'), *options])
+
+
+if __name__ == '__main__':
+    main()

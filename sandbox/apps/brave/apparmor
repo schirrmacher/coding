@@ -1,0 +1,29 @@
+#include <sandbox/display>
+
+# The browser owns this isolated profile, including cookies and extensions.
+  "${HOME}/.local/share/sandbox/brave/" r,
+  "${HOME}/.local/share/sandbox/brave/**" rwklmix,
+
+# These are the only existing personal folders exposed to the browser.
+  "${HOME}/Downloads/" r,
+  "${HOME}/Downloads/**" rwklmix,
+
+  "${HOME}/dev/" r,
+  "${HOME}/dev/**" rwklmix,
+
+# Bubblewrap creates mountpoints in its temporary root before switching roots.
+  "/newroot${HOME}/" rw,
+  "/newroot${HOME}/**/" rw,
+
+# Chromium reads its installed resources and executable helpers.
+  /opt/brave.com/brave/{,**} rmkix,
+  /usr/share/brave{,-browser}/{,**} r,
+
+# Child processes inspect their own namespace and sandbox status.
+  owner @{PROC}/@{pid}/task/{,**} r,
+  owner @{PROC}/@{pid}/{status,limits,sched,oom_score,oom_score_adj} r,
+  owner @{PROC}/@{pid}/oom_score_adj w,
+
+# Temporary placeholders for display sockets and the X11 authority file.
+  "/newroot/run/user/${UID}/{,**}" rw,
+  "/newroot${HOME}/.Xauthority" rw,

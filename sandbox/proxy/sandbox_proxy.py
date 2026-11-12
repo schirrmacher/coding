@@ -36,11 +36,11 @@ async def main() -> None:
     ]
     dns_tcp_servers = [
         await asyncio.start_server(handle_dns_tcp, ip, dns_port)
-        for ip, _, endpoints in apps if endpoints.entries
+        for ip, _, endpoints in apps if endpoints.online
     ]
     dns_udp_transports = [
         await start_dns_udp(ip, dns_port, dns_resolvers)
-        for ip, _, endpoints in apps if endpoints.entries
+        for ip, _, endpoints in apps if endpoints.online
     ]
 
     apps_summary = ", ".join(

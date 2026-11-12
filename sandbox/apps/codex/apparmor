@@ -1,0 +1,73 @@
+# Filesystem grants. Secret and other-app state denies take precedence.
+# rwklmix: read, write, lock, link, executable mapping, and inherited execution.
+# rmk: read, executable mapping, and file locking; write/link denies stay explicit.
+  "${HOME}/.codex/" r,
+  "${HOME}/.codex/**" rwklmix,
+
+  # Create mountpoints in Bubblewrap's temporary root.
+  "/newroot${HOME}/.codex/" rw,
+  "/newroot${HOME}/.codex/**/" rw,
+
+  "${HOME}/.local/share/sandbox/gh/" r,
+  "${HOME}/.local/share/sandbox/gh/**" rwklmix,
+  "/newroot${HOME}/.local/share/sandbox/gh/" rw,
+  "/newroot${HOME}/.local/share/sandbox/gh/**/" rw,
+
+  "${HOME}/.local/share/sandbox/cargo/" r,
+  "${HOME}/.local/share/sandbox/cargo/**" rwklmix,
+  "/newroot${HOME}/.local/share/sandbox/cargo/" rw,
+  "/newroot${HOME}/.local/share/sandbox/cargo/**/" rw,
+
+  "${HOME}/.local/share/sandbox/uv/" r,
+  "${HOME}/.local/share/sandbox/uv/**" rwklmix,
+  "/newroot${HOME}/.local/share/sandbox/uv/" rw,
+  "/newroot${HOME}/.local/share/sandbox/uv/**/" rw,
+
+  "${HOME}/.config/sigrid/" r,
+  "${HOME}/.config/sigrid/**" rwklmix,
+  "/newroot${HOME}/.config/sigrid/" rw,
+  "/newroot${HOME}/.config/sigrid/**/" rw,
+
+  "${HOME}/.agents/" r,
+  "${HOME}/.agents/**" rmk,
+  deny "${HOME}/.agents/**" wl,
+
+  "${HOME}/.orca/agent-hooks/" r,
+  "${HOME}/.orca/agent-hooks/**" rmk,
+  deny "${HOME}/.orca/agent-hooks/**" wl,
+
+  "${HOME}/.local/share/codex/" r,
+  "${HOME}/.local/share/codex/**" rmk,
+  deny "${HOME}/.local/share/codex/**" wl,
+
+  "${HOME}/.cargo/bin/" r,
+  "${HOME}/.cargo/bin/**" rmk,
+  deny "${HOME}/.cargo/bin/**" wl,
+
+  "${HOME}/.rustup/" r,
+  "${HOME}/.rustup/**" rmk,
+  deny "${HOME}/.rustup/**" wl,
+
+  "${HOME}/.local/share/sandbox/runtimes/uv/" r,
+  "${HOME}/.local/share/sandbox/runtimes/uv/**" rmk,
+  deny "${HOME}/.local/share/sandbox/runtimes/uv/**" wl,
+
+  "${HOME}/.local/share/sigrid/" r,
+  "${HOME}/.local/share/sigrid/**" rmk,
+  deny "${HOME}/.local/share/sigrid/**" wl,
+
+  "${HOME}/.local/share/sandbox/runtimes/sigrid/" r,
+  "${HOME}/.local/share/sandbox/runtimes/sigrid/**" rmk,
+  deny "${HOME}/.local/share/sandbox/runtimes/sigrid/**" wl,
+
+  "/usr/include/" r,
+  "/usr/include/**" rmk,
+  deny "/usr/include/**" wl,
+
+  "/usr/libexec/gcc/" r,
+  "/usr/libexec/gcc/**" rmk,
+  deny "/usr/libexec/gcc/**" wl,
+
+#include <sandbox/secret-service>
+
+#include <sandbox/nested-network-namespace>

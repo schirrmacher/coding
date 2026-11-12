@@ -1,0 +1,55 @@
+  # Standard runtime libraries and user/group lookup for privilege dropping.
+  #include <abstractions/base>
+  #include <abstractions/nameservice>
+
+  # Permit user namespaces; the kernel still enforces namespace ownership.
+  userns,
+
+  # The launcher enters as root, then setpriv adopts the invoking user's identity.
+  capability setuid,
+  capability setgid,
+
+  # Executed programs retain this profile and all explicit deny rules.
+  /** ix,
+
+  # Namespace firewall rules enforce destinations and ports, including offline mode.
+  network,
+
+  # Bubblewrap maps the caller into a user namespace and constructs a new root.
+  # These AppArmor permissions do not grant capabilities in the host namespace.
+  capability sys_admin,
+  capability setpcap,
+  capability mknod,
+  capability sys_chroot,
+
+  mount,
+  remount,
+  umount,
+  pivot_root,
+
+  # Process inspection supports namespace setup and debuggers under this profile.
+  capability sys_ptrace,
+  / r,
+  @{PROC}/sys/kernel/overflow{uid,gid} r,
+  @{PROC}/version r,
+  owner @{PROC}/@{pid}/{uid,gid}_map rw,
+  owner @{PROC}/@{pid}/setgroups rw,
+  owner @{PROC}/@{pid}/fd/ r,
+  owner @{PROC}/@{pid}/fd/** r,
+  owner @{PROC}/@{pid}/{cmdline,mountinfo,stat} r,
+  owner @{PROC}/@{pid}/attr/current r,
+
+  # Device files are created in the sandbox's staged filesystem.
+  /{,newroot/}dev/** rw,
+
+  # Read Git identity defaults; credential stores remain explicitly denied.
+  @{HOME}/.gitconfig r,
+
+  # Resolver and namespace configuration belong to host setup.
+  deny /etc/netns/** rwklmx,
+
+  # Temporary files and nested mountpoints live in sandbox-private tmpfs mounts.
+  /{,newroot/}tmp/ r,
+  /{,newroot/}tmp/** rwklmix,
+  /{,newroot/}var/tmp/ r,
+  /{,newroot/}var/tmp/** rwklmix,

@@ -1,0 +1,13 @@
+# Filesystem grants. Secret and other-app state denies take precedence.
+# rwklmix: read, write, lock, link, executable mapping, and inherited execution.
+# rmk: read, executable mapping, and file locking; write/link denies stay explicit.
+  "${HOME}/.local/share/sandbox/uv/" r,
+  "${HOME}/.local/share/sandbox/uv/**" rwklmix,
+
+  # Create mountpoints in Bubblewrap's temporary root.
+  "/newroot${HOME}/.local/share/sandbox/uv/" rw,
+  "/newroot${HOME}/.local/share/sandbox/uv/**/" rw,
+
+  "${HOME}/.local/share/sandbox/runtimes/uv/" r,
+  "${HOME}/.local/share/sandbox/runtimes/uv/**" rmk,
+  deny "${HOME}/.local/share/sandbox/runtimes/uv/**" wl,

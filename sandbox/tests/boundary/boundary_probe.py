@@ -37,6 +37,9 @@ def main():
         readonly_fixture()
     elif mode == "readonly-config":
         readonly_config(args[0])
+    elif mode == "readonly-definition-directory":
+        assert os.statvfs(args[0]).f_flag & os.ST_RDONLY, "definition directory mount is writable"
+        readonly_directory(args[0])
     elif mode == "dns":
         socket.getaddrinfo(args[0], HTTPS_PORT, type=socket.SOCK_STREAM)
     elif mode == "tls-allow":

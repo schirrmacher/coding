@@ -1,0 +1,9 @@
+  #include <abstractions/dbus-session-strict>
+  dbus (send) bus=session
+       path=/org/freedesktop/portal/desktop
+       interface=org.freedesktop.portal.OpenURI member=OpenURI
+       peer=(name=org.freedesktop.portal.Desktop),
+  dbus (send) bus=session
+       path=/org/freedesktop/portal/desktop
+       interface=org.freedesktop.DBus.Introspectable member=Introspect
+       peer=(name=org.freedesktop.portal.Desktop),

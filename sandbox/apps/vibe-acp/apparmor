@@ -1,0 +1,43 @@
+# Filesystem grants. Secret and other-app state denies take precedence.
+# rwklmix: read, write, lock, link, executable mapping, and inherited execution.
+# rmk: read, executable mapping, and file locking; write/link denies stay explicit.
+  "${HOME}/.vibe/" r,
+  "${HOME}/.vibe/**" rwklmix,
+
+  # Create mountpoints in Bubblewrap's temporary root.
+  "/newroot${HOME}/.vibe/" rw,
+  "/newroot${HOME}/.vibe/**/" rw,
+
+  "${HOME}/.local/share/sandbox/gh/" r,
+  "${HOME}/.local/share/sandbox/gh/**" rwklmix,
+  "/newroot${HOME}/.local/share/sandbox/gh/" rw,
+  "/newroot${HOME}/.local/share/sandbox/gh/**/" rw,
+
+  "${HOME}/.config/sigrid/" r,
+  "${HOME}/.config/sigrid/**" rwklmix,
+  "/newroot${HOME}/.config/sigrid/" rw,
+  "/newroot${HOME}/.config/sigrid/**/" rw,
+
+  "${HOME}/.local/share/sandbox/runtimes/browser/" r,
+  "${HOME}/.local/share/sandbox/runtimes/browser/**" rmk,
+  deny "${HOME}/.local/share/sandbox/runtimes/browser/**" wl,
+
+  "${HOME}/.local/share/mistral-vibe/" r,
+  "${HOME}/.local/share/mistral-vibe/**" rmk,
+  deny "${HOME}/.local/share/mistral-vibe/**" wl,
+
+  "${HOME}/.agents/" r,
+  "${HOME}/.agents/**" rmk,
+  deny "${HOME}/.agents/**" wl,
+
+  "${HOME}/.local/share/sigrid/" r,
+  "${HOME}/.local/share/sigrid/**" rmk,
+  deny "${HOME}/.local/share/sigrid/**" wl,
+
+  "${HOME}/.local/share/sandbox/runtimes/sigrid/" r,
+  "${HOME}/.local/share/sandbox/runtimes/sigrid/**" rmk,
+  deny "${HOME}/.local/share/sandbox/runtimes/sigrid/**" wl,
+
+#include <sandbox/secret-service>
+
+#include <sandbox/browser>
