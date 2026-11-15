@@ -1,4 +1,4 @@
-NETWORK_RULES=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../rules" && pwd)
+NETWORK_RULES=$(cd "$(dirname "${BASH_SOURCE[0]}")/../rules" && pwd)
 
 # Source-only network operations.
 
@@ -51,11 +51,11 @@ install_firewall() {
 }
 
 pool_host_ip() {
-	python3 "$SCRIPT_DIR/../lib/read_definitions.py" network host "$POOL_BASE" "$1"
+	python3 "$SCRIPT_DIR/src/read_definitions.py" network host "$POOL_BASE" "$1"
 }
 
 pool_ns_ip() {
-	python3 "$SCRIPT_DIR/../lib/read_definitions.py" network namespace "$POOL_BASE" "$1"
+	python3 "$SCRIPT_DIR/src/read_definitions.py" network namespace "$POOL_BASE" "$1"
 }
 
 render_firewall() {

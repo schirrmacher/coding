@@ -1,4 +1,4 @@
-"""Shared module loading and dependency-free TOML fixtures."""
+"""Shared module loading and native app fixtures."""
 import importlib.util
 import json
 import os
@@ -32,18 +32,6 @@ def run_bash(script):
     )
 
 
-def write_global_config(path, data):
-    """Write the three supported global settings for a native fixture."""
-    lines = []
-    if "default" in data:
-        lines.append(f'default = {json.dumps(data["default"])}')
-    for table in ("net", "proxy"):
-        if table in data:
-            lines.append(f"[{table}]")
-            lines.extend(f"{name} = {json.dumps(value)}" for name, value in data[table].items())
-    Path(path).write_text("\n".join(lines) + "\n")
-
-
 def write_config(path, data):
     """Small native fixtures for command, mount and feature contracts."""
     import shlex
@@ -64,19 +52,17 @@ def write_config(path, data):
             files["launch.sh"] = ('#!/bin/sh\nif [ "${1-}" = --sandbox-command ]; then\n'
                                   'shift\nelse\nset -- ' + command + ' "$@"\nfi\nexec "$@"\n')
         apps[app["name"]] = files
-    native_config(path, apps, **{key: value for key, value in data.items() if key != "apps"})
+    native_config(path, apps)
 
 
-def native_config(path, apps, **settings):
+def native_config(path, apps):
     """Write native app files directly for loader and launcher contract tests."""
     path = Path(path)
-    root = path.parent / "apps"
-    root.mkdir(exist_ok=True)
+    root = path / "apps"
+    root.mkdir(parents=True, exist_ok=True)
     for name, files in apps.items():
         directory = root / name
         directory.mkdir(exist_ok=True)
         for filename, text in {"apparmor": "", "mounts.args": "", "endpoints": "", **files}.items():
             (directory / filename).write_text(text)
-    write_global_config(path, {"default": next(iter(apps)), "net": {"subnet": "10.77.0.0/24"},
-                              "proxy": {"sni_port": 3128, "dns_port": 53}, **settings})
     return path

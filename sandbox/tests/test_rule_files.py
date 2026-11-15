@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 from test_support import ROOT, load_module, run_bash, write_config
 
-secrets = load_module("secret_rules", ROOT / "lib/render_secret_rules.py")
+secrets = load_module("secret_rules", ROOT / "src/render_secret_rules.py")
 
 
 class RuleFileTests(unittest.TestCase):
@@ -36,11 +36,11 @@ class RuleFileTests(unittest.TestCase):
 
     def test_profile_is_standalone_and_renders_outside_repository(self):
         with tempfile.TemporaryDirectory() as temporary:
-            config = Path(temporary) / "config.toml"
+            config = Path(temporary)
             write_config(config, {"apps": [{"name": "demo", "gui": True, "pty": True,
                                           "browser": True, "sigrid": True}]})
             result = run_bash(f'''cd /tmp
-source {shlex.quote(str(ROOT / 'host/up'))}
+source {shlex.quote(str(ROOT / 'up'))}
 CONFIG={shlex.quote(str(config))}
 render_apparmor demo /tmp
 ''')
@@ -57,9 +57,9 @@ render_apparmor demo /tmp
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             shutil.copytree(ROOT / "rules", root / "rules")
-            (root / "lib").mkdir()
-            shutil.copy(ROOT / "lib/render_secret_rules.py", root / "lib/render_secret_rules.py")
-            prefix = f'''source {shlex.quote(str(ROOT / 'lib/render_apparmor.sh'))}
+            (root / "src").mkdir()
+            shutil.copy(ROOT / "src/render_secret_rules.py", root / "src/render_secret_rules.py")
+            prefix = f'''source {shlex.quote(str(ROOT / 'src/render_apparmor.sh'))}
 APPARMOR_RULES={shlex.quote(str(root / 'rules/apparmor'))}
 app_file_rules() {{ :; }}
 app_sigrid_rules() {{ :; }}
@@ -78,14 +78,14 @@ app_pty_rules() {{ :; }}
             result = run_bash(prefix + "render_apparmor demo /tmp")
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("cannot render secret rules", result.stderr)
-            result = run_bash(f'''source {shlex.quote(str(ROOT / 'rules/bubblewrap.sh'))}
-BUBBLEWRAP_RULES={shlex.quote(str(root / 'rules'))}
+            result = run_bash(f'''source {shlex.quote(str(ROOT / 'src/build_mounts.sh'))}
+MOUNT_SOURCES_DIR={shlex.quote(str(root / 'src'))}
 build_mask_args /tmp
 ''')
             self.assertNotEqual(result.returncode, 0)
 
     def test_missing_firewall_file_stops_before_nft_is_called(self):
-        result = run_bash(f'''source {shlex.quote(str(ROOT / 'lib/host/configure_network.sh'))}
+        result = run_bash(f'''source {shlex.quote(str(ROOT / 'src/configure_network.sh'))}
 NETWORK_RULES=/nonexistent-sandbox-rules
 POOL_CIDR=10.77.0.0/24; SNI_PORT=3128; DNS_PORT=53
 nft() {{ echo 'unexpected nft call' >&2; }}

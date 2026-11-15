@@ -5,10 +5,10 @@ from unittest.mock import patch
 from pathlib import Path
 from test_support import ROOT, load_module, native_config
 
-loader = load_module("native_policy_loader", ROOT / "lib/read_definitions.py")
-runtime = load_module("native_runtime", ROOT / "lib/create_app_state.py")
+loader = load_module("native_policy_loader", ROOT / "src/read_definitions.py")
+runtime = load_module("native_runtime", ROOT / "src/create_app_state.py")
 import sys
-sys.path.insert(0, str(ROOT / "lib"))
+sys.path.insert(0, str(ROOT / "src"))
 from read_definitions import AppPolicy
 sys.path.pop(0)
 
@@ -18,7 +18,7 @@ class StatePolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             state = root / "private"
-            path = native_config(root / "sandbox.toml", {"owner": {"state": str(state)}, "other": {}})
+            path = native_config(root, {"owner": {"state": str(state)}, "other": {}})
             data = loader.read_config(path, root / "absent")
             self.assertEqual(AppPolicy.from_config(data, "owner").writable, ())
             self.assertEqual(AppPolicy.from_config(data, "other").private, (str(state),))
@@ -32,7 +32,7 @@ class StatePolicyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             state = str(root / "shared")
-            path = native_config(root / "sandbox.toml", {
+            path = native_config(root, {
                 "first": {"state": state}, "second": {"state": state},
                 "reader": {"mounts.args": f"--ro-bind\n{state}\n{state}\n"},
                 "broad": {"mounts.args": f"--bind\n{root}\n{root}\n"}})
@@ -44,7 +44,7 @@ class StatePolicyTests(unittest.TestCase):
     def test_executable_preparation_hooks_are_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            path = native_config(root / "sandbox.toml", {"demo": {"prepare.sh": "exit 0"}})
+            path = native_config(root, {"demo": {"prepare.sh": "exit 0"}})
             with self.assertRaisesRegex(ValueError, "unknown app file"):
                 loader.read_config(path, root / "absent")
 

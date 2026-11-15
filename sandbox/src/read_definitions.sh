@@ -1,16 +1,6 @@
 # Keep one effective native-definition snapshot per invocation.
 CONFIG_LOADER=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/read_definitions.py
 
-canonical_config_path() {
-	local path
-	path=$(realpath -e -- "$CONFIG") || return 1
-	[[ -f $path ]] || {
-		echo "configuration is not a regular file: $CONFIG" >&2
-		return 1
-	}
-	printf '%s\n' "$path"
-}
-
 read_config() {
 	CONFIG_JSON=$(python3 "$CONFIG_LOADER" "$CONFIG" ${LOCAL_CONFIG:+"$LOCAL_CONFIG"}) || return 1
 	CONFIG_SOURCE=$CONFIG

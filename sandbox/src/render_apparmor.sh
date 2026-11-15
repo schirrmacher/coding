@@ -28,7 +28,7 @@ render_apparmor() {
 	while IFS= read -r line; do
 		case $line in
 		@BASE_RULES@) cat "$APPARMOR_RULES/base" || return 1 ;;
-		@SECRET_RULES@) python3 "${APPARMOR_RULES%/rules/apparmor}/lib/render_secret_rules.py" apparmor || return 1 ;;
+		@SECRET_RULES@) python3 "${APPARMOR_RULES%/rules/apparmor}/src/render_secret_rules.py" apparmor || return 1 ;;
 		@DIRECTORY_RULES@) app_file_rules "$app" || return 1 ;;
 		*) printf '%s\n' "${line//@SANDBOX_APP@/$app}" ;;
 		esac

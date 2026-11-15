@@ -6,13 +6,12 @@ import shlex
 import shutil
 import subprocess
 import tempfile
-import tomllib
 import unittest
 
-from test_support import ROOT, load_module, run_bash, write_global_config
+from test_support import ROOT, load_module, run_bash
 
-loader = load_module('contract_definitions', ROOT / 'lib/read_definitions.py')
-desktop = load_module('contract_desktops', ROOT / 'lib/render_desktop.py')
+loader = load_module('contract_definitions', ROOT / 'src/read_definitions.py')
+desktop = load_module('contract_desktops', ROOT / 'src/render_desktop.py')
 
 
 class AppContracts(unittest.TestCase):
@@ -21,9 +20,7 @@ class AppContracts(unittest.TestCase):
         cls.temporary = tempfile.TemporaryDirectory()
         cls.addClassCleanup(cls.temporary.cleanup)
         cls.home = Path(cls.temporary.name)
-        cls.config = cls.home / 'sandbox.toml'
-        settings = tomllib.loads((ROOT / 'sandbox.toml').read_text())
-        write_global_config(cls.config, {key: settings[key] for key in ('default', 'net', 'proxy')})
+        cls.config = cls.home
         shutil.copytree(ROOT / 'apps', cls.home / 'apps')
         cls.data = loader.read_config(cls.config, cls.home / 'absent', home=str(cls.home))
         loader.validate_config(cls.data)
@@ -79,7 +76,7 @@ class AppContracts(unittest.TestCase):
             for key, value in overrides.items():
                 self.assertEqual(values[key], value)
         # Command-only apps also receive the complete namespace and mask plan.
-        result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+        result = run_bash(f'''source {shlex.quote(str(ROOT / 'run'))}
 CONFIG={shlex.quote(str(self.config))}; APP={shlex.quote(name)}
 HOME_DIR={shlex.quote(str(self.home))}; CMD=(/bin/true); ENV_ARGS=()
 prepare_mounts_and_environment
@@ -88,7 +85,7 @@ printf '%s\\n' "${{NETWORK_ARGS[@]}}"
         self.assertEqual(result.returncode, 0, result.stderr)
         offline = not app['endpoints'] and app['network'] != 'web'
         self.assertEqual('--unshare-net' in result.stdout, offline)
-        result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+        result = run_bash(f'''source {shlex.quote(str(ROOT / 'run'))}
 CONFIG={shlex.quote(str(self.config))}; APP={shlex.quote(name)}
 HOME_DIR={shlex.quote(str(self.home))}; CMD=(/bin/true); ENV_ARGS=(); OFFLINE=1
 prepare_mounts_and_environment

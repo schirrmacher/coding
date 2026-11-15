@@ -67,7 +67,7 @@ write_desktop_override() {
 	wrapper=$(config_query -r --arg app "$app" 'first(.apps[] | select(.name == $app)).wrappers[0] // empty') || return 1
 	[[ -n $wrapper ]] || { echo "desktop app has no command wrapper: $app" >&2; return 1; }
 	prefix=$(desktop_cmd "$BIN_DIR/$wrapper")
-	rendered=$(python3 "$SANDBOX_ROOT/lib/render_desktop.py" --native "$app" "$desktop_file" "$prefix" "$BIN_DIR/$wrapper" <<< "$CONFIG_JSON") || return 1
+	rendered=$(python3 "$SANDBOX_ROOT/src/render_desktop.py" --native "$app" "$desktop_file" "$prefix" "$BIN_DIR/$wrapper" <<< "$CONFIG_JSON") || return 1
 	path="$DESKTOP_DIR/$desktop_file"
 	preserve_desktop_entry "$path" || return 1
 	install_from_stdin "$path" plain <<EOF
@@ -114,5 +114,5 @@ prepare_installation() {
     mkdir -p "$BIN_DIR" "$DESKTOP_DIR"
     local browser="$HOME/.local/share/sandbox/runtimes/browser/xdg-open"
     mkdir -p "${browser%/*}"
-    install -m 0755 "$SANDBOX_ROOT/bin/open_browser" "$browser"
+    install -m 0755 "$SANDBOX_ROOT/src/open_browser" "$browser"
 }

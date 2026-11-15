@@ -3,9 +3,9 @@
 set -euo pipefail
 
 SANDBOX_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-CONFIG="$SANDBOX_ROOT/sandbox.toml"
-source "$SANDBOX_ROOT/lib/read_definitions.sh"
-LAUNCHER="$SANDBOX_ROOT/bin/sandbox"
+CONFIG="$SANDBOX_ROOT"
+source "$SANDBOX_ROOT/src/read_definitions.sh"
+LAUNCHER="$SANDBOX_ROOT/run"
 PROXY_CONFIG=/usr/local/lib/sandbox/apps.json
 FIXTURE=
 TEST_FILES=()
@@ -83,9 +83,8 @@ main() {
 
 local_checks() {
 	local failed=0 script
-	for script in "$SANDBOX_ROOT"/bin/* "$SANDBOX_ROOT"/host/* "$SANDBOX_ROOT"/lib/*.sh \
-		"$SANDBOX_ROOT"/lib/launch/*.sh "$SANDBOX_ROOT"/lib/host/*.sh \
-        "$SANDBOX_ROOT"/rules/*.sh "$SANDBOX_ROOT"/apps/*/*.sh "$SANDBOX_ROOT"/tests/*.sh "$SANDBOX_ROOT"/tests/boundary/*.sh; do
+	for script in "$SANDBOX_ROOT"/{run,install,up,down} "$SANDBOX_ROOT"/src/open_browser \
+        "$SANDBOX_ROOT"/src/*.sh "$SANDBOX_ROOT"/apps/*/*.sh "$SANDBOX_ROOT"/tests/*.sh "$SANDBOX_ROOT"/tests/boundary/*.sh; do
 		if bash -n "$script"; then
 			printf 'PASS syntax: %s\n' "${script#"$SANDBOX_ROOT"/}"
 		else
@@ -169,7 +168,6 @@ verify_app() {
 	tar -C "$SANDBOX_ROOT/tests/boundary" -cf - test_boundary.sh boundary_probe.py | \
 	SANDBOX_ALLOW_NO_APPARMOR=0 SANDBOX_TEST_UNPASSED=host-only \
 		sudo -n "$LAUNCHER" --app "$app" \
-		--env "SANDBOX_TEST_CONFIG=$(canonical_config_path)" \
 		--env "SANDBOX_TEST_CONFIGS=$(config_query -c '.config_paths')" \
 		--env "SANDBOX_TEST_CONFIG_DIRS=$(config_query -c '.config_directories')" \
 		--env "SANDBOX_TEST_UID=$(id -u)" \

@@ -6,15 +6,15 @@ import tempfile
 import unittest
 from test_support import ROOT, load_module, native_config, run_bash
 
-loader = load_module('web_definitions', ROOT / 'lib/read_definitions.py')
-proxy_config = load_module('web_proxy_config', ROOT / 'proxy/sandbox_proxy_core/config.py')
+loader = load_module('web_definitions', ROOT / 'src/read_definitions.py')
+proxy_config = load_module('web_proxy_config', ROOT / 'src/proxy_config.py')
 
 
 class WebNetworkTests(unittest.TestCase):
     def test_web_mode_requires_no_endpoints_and_unknown_modes_fail_closed(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            config = native_config(root / 'sandbox.toml', {'demo': {'network': 'web'}})
+            config = native_config(root, {'demo': {'network': 'web'}})
             data = loader.read_config(config, root / 'absent')
             self.assertEqual(data['apps'][0]['network'], 'web')
             first = data['policy_fingerprint']
@@ -40,9 +40,9 @@ class WebNetworkTests(unittest.TestCase):
     def test_firewall_assigns_web_access_only_to_declared_namespace_addresses(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            config = native_config(root / 'sandbox.toml', {
+            config = native_config(root, {
                 'allowlisted': {'endpoints': 'example.com'}, 'browser': {'network': 'web'}, 'offline': {}})
-            result = run_bash(f'''source {shlex.quote(str(ROOT / 'host/up'))}
+            result = run_bash(f'''source {shlex.quote(str(ROOT / 'up'))}
 CONFIG={shlex.quote(str(config))}
 read_config
 POOL_BASE=10.77.0; POOL_CIDR=10.77.0.0/24; SNI_PORT=3128; DNS_PORT=53
@@ -59,7 +59,7 @@ render_firewall
             self.assertNotIn('@WEB_SOURCES@', result.stdout)
 
     def test_invalid_firewall_does_not_replace_active_rules_or_enable_forwarding(self):
-        result = run_bash(f'''source {shlex.quote(str(ROOT / 'lib/host/configure_network.sh'))}
+        result = run_bash(f'''source {shlex.quote(str(ROOT / 'src/configure_network.sh'))}
 POOL_CIDR=10.77.0.0/24
 render_firewall() {{ echo invalid; }}
 nft() {{ [[ $1 == -c ]] || {{ echo unexpected-mutation; return 0; }}; return 1; }}

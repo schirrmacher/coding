@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from test_support import ROOT, load_module, native_config
 
-loader = load_module("native_local_loader", ROOT / "lib/read_definitions.py")
+loader = load_module("native_local_loader", ROOT / "src/read_definitions.py")
 
 
 class LocalConfigTests(unittest.TestCase):
@@ -12,7 +12,7 @@ class LocalConfigTests(unittest.TestCase):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
-        self.public = native_config(self.root / "sandbox.toml", {"demo": {"endpoints": "public.example\n", "apparmor": "#include <sandbox/browser>\n"}})
+        self.public = native_config(self.root, {"demo": {"endpoints": "public.example\n", "apparmor": "#include <sandbox/browser>\n"}})
         self.local = self.root / "local-apps"
         (self.local / "demo").mkdir(parents=True)
 

@@ -1,8 +1,7 @@
 # Source-only assembly of native app arguments and protected mounts.
-BUBBLEWRAP_RULES=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+MOUNT_SOURCES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 prepare_mounts_and_environment() {
-	CONFIG_PATH=$(canonical_config_path) || return 1
 	NETWORK_ARGS=()
 	if [[ ${OFFLINE:-0} == 1 ]] || config_query -e --arg app "$APP" 'any(.apps[]; .name == $app and .endpoints == [] and .network != "web")' >/dev/null; then
 		NETWORK_ARGS=(--unshare-net)
@@ -41,7 +40,7 @@ prepare_mounts_and_environment() {
 
 build_mask_args() {
 	local mask paths
-	paths=$(python3 "$BUBBLEWRAP_RULES/../lib/render_secret_rules.py" masks "$1") || return 1
+	paths=$(python3 "$MOUNT_SOURCES_DIR/render_secret_rules.py" masks "$1") || return 1
 	MASK_ARGS=()
 	while IFS= read -r mask; do
 		[[ -d $mask ]] || continue

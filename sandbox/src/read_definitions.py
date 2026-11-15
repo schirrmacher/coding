@@ -1,10 +1,9 @@
-"""Load global TOML and effective native per-app files."""
+"""Load effective native per-app files and shared enforcement defaults."""
 import hashlib
 import json
 import os
 import pwd
 import re
-import tomllib
 from pathlib import Path
 from dataclasses import dataclass
 import ipaddress
@@ -100,13 +99,11 @@ def user_home():
 def read_config(path, local_path=None, home=None):
     path = Path(path).resolve(strict=True)
     home = str(home) if home is not None else user_home()
-    global_text = path.read_text()
-    data = tomllib.loads(global_text)
-    if "apps" in data or "directories" in data:
-        raise ValueError("app TOML is not supported; define apps using native files under apps/")
-    if data.keys() - {"default", "net", "proxy"}:
-        raise ValueError("global configuration accepts only default, net and proxy")
-    public = path.parent / "apps"
+    if not path.is_dir():
+        raise ValueError(f"definition root is not a directory: {path}")
+    data = {"net": {"subnet": "10.77.0.0/24"},
+            "proxy": {"sni_port": 3128, "dns_port": 53}}
+    public = path / "apps"
     local = Path(local_path) if local_path is not None else Path(home) / ".config/sandbox/apps"
     old_local = Path(home) / ".config/sandbox/local.toml"
     if local_path is None and old_local.exists():
@@ -114,8 +111,9 @@ def read_config(path, local_path=None, home=None):
     if local.is_file():
         raise ValueError(f"{local}: local TOML is not supported; use a directory of native app replacements")
     runtime = Path(__file__).resolve().parents[1]
-    implementation = [runtime / name for name in ("bin", "host", "lib", "proxy")]
-    directories = [public, local, RULES, *implementation]
+    implementation = runtime / "src"
+    entrypoints = [runtime / name for name in ("run", "install", "up", "down")]
+    directories = [public, local, RULES, implementation]
     if not public.is_dir():
         raise ValueError(f"missing app directory: {public}")
     if local.exists():
@@ -128,7 +126,7 @@ def read_config(path, local_path=None, home=None):
         unknown = {child.name for child in local.iterdir()} - set(names)
         if unknown:
             raise ValueError(f"unknown local apps: {', '.join(sorted(unknown))}")
-    sources = {str(path): global_text}
+    sources = {}
     apps = []
     values = context(home)
     for name in names:
@@ -185,15 +183,13 @@ def read_config(path, local_path=None, home=None):
         if source.is_file():
             sources[str(source.resolve())] = source.read_text()
     # Writable project binds must not allow payloads to replace privileged launcher code.
-    for directory in implementation:
-        for source in sorted(directory.rglob("*")):
-            if source.is_file() and "__pycache__" not in source.parts and (
-                    source.suffix in (".py", ".sh", ".service") or source.parent in implementation):
-                sources[str(source.resolve())] = source.read_text()
+    for source in [*entrypoints, *sorted(implementation.rglob("*"))]:
+        if source.is_file() and "__pycache__" not in source.parts:
+            sources[str(source.resolve())] = source.read_text()
     data.update(apps=apps, config_paths=list(sources),
                 config_directories=list(dict.fromkeys(str(directory.resolve()) for directory in directories)))
     # Session variables affect launch arguments, not the installed policy identity.
-    identity = {"global": global_text, "sources": sources, "directories": data["config_directories"],
+    identity = {"network": {"net": data["net"], "proxy": data["proxy"]}, "sources": sources, "directories": data["config_directories"],
                 "home": home, "uid": values["UID"]}
     data["policy_fingerprint"] = hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
     return data
@@ -242,18 +238,6 @@ def validate_launchers(data):
 
 def validate_config(data):
     names = [app["name"] for app in data["apps"]]
-    if data.get("default") not in names:
-        raise ValueError("default names no declared app")
-    try:
-        subnet = ipaddress.IPv4Network(data["net"]["subnet"])
-        if subnet.prefixlen != 24:
-            raise ValueError()
-    except (KeyError, ValueError, TypeError):
-        raise ValueError("net.subnet must be a /24 IPv4 network") from None
-    ports = data.get("proxy", {})
-    port = ports.get("sni_port")
-    if type(port) is not int or not 1 <= port <= 65535 or port == 53 or ports.get("dns_port") != 53:
-        raise ValueError("proxy.sni_port must be an integer port other than 53; proxy.dns_port must be 53")
     if len(names) > 64:
         raise ValueError("subnet supports at most 64 apps")
     validate_launchers(data)

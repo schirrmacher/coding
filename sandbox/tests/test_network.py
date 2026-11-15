@@ -6,26 +6,21 @@ import os
 import shlex
 import subprocess
 import tempfile
-import tomllib
 import unittest
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 from test_support import ROOT, load_module, run_bash, write_config
 
-proxy = load_module("apps_proxy", ROOT / "proxy/sandbox_proxy.py")
-loader = load_module("apps_config", ROOT / "lib/read_definitions.py")
+proxy = load_module("apps_proxy", ROOT / "src/proxy.py")
+loader = load_module("apps_config", ROOT / "src/read_definitions.py")
 
 
 def public_config(directory):
     import shutil
-    from test_support import write_global_config
-    path = Path(directory) / "sandbox/sandbox.toml"
-    path.parent.mkdir(parents=True)
-    data = tomllib.loads((ROOT / "sandbox.toml").read_text())
-    write_global_config(path, {key: data[key] for key in ("default", "net", "proxy")})
-    shutil.copytree(ROOT / "apps", path.parent / "apps")
-    for source in (path.parent / "apps").rglob("*"):
+    path = Path(directory) / "sandbox"
+    shutil.copytree(ROOT / "apps", path / "apps")
+    for source in (path / "apps").rglob("*"):
         if source.is_file():
             source.write_text(source.read_text().replace("${HOME}", str(directory)))
     return path
@@ -41,7 +36,7 @@ class OfflineTests(unittest.TestCase):
             for app in loader.read_config(config, Path(directory) / "absent")["apps"]:
                 name = app["name"]
                 with self.subTest(app=name):
-                    result = run_bash(f'''source {shlex.quote(str(ROOT / "bin/sandbox"))}
+                    result = run_bash(f'''source {shlex.quote(str(ROOT / "run"))}
 CONFIG={shlex.quote(str(config))}; APP={name}; CMD=(/bin/true); ENV_ARGS=()
 SUDO_UID=$(id -u); SUDO_GID=$(id -g)
 export PATH={shlex.quote(directory)}:$PATH
@@ -72,7 +67,7 @@ run_payload
             writer = Writer()
             server = proxy.SniProxy({"10.77.0.2": endpoints})
             with patch.object(server, "_read_client_hello", return_value=b"hello"), \
-                    patch("sandbox_proxy_core.tls.sni_from_client_hello", return_value="example.com"), \
+                    patch("proxy_tls.sni_from_client_hello", return_value="example.com"), \
                     patch.object(proxy.asyncio, "open_connection") as connect:
                 await server.handle(None, writer)
             connect.assert_not_called()

@@ -1,30 +1,23 @@
 #!/usr/bin/env bash
-# Run commands as the invoking user inside the sandbox. See ../README.md.
+# Run commands as the invoking user inside the sandbox. See README.md.
 
 set -euo pipefail
 
 # Resolve the installed symlink before locating config and scripts.
-SANDBOX_ROOT=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")/.." && pwd)
-CONFIG="$SANDBOX_ROOT/sandbox.toml"
-source "$SANDBOX_ROOT/lib/read_definitions.sh"
+SANDBOX_ROOT=$(cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")" && pwd)
+CONFIG="$SANDBOX_ROOT"
+source "$SANDBOX_ROOT/src/read_definitions.sh"
 PROXY_CONFIG=/usr/local/lib/sandbox/apps.json
 PROXY_DIR=/usr/local/lib/sandbox
 
-source "${SANDBOX_ROOT}/lib/launch/resolve_directories.sh"
-source "${SANDBOX_ROOT}/rules/bubblewrap.sh"
-source "${SANDBOX_ROOT}/lib/launch/run_payload.sh"
-source "${SANDBOX_ROOT}/lib/launch/show_status.sh"
+source "${SANDBOX_ROOT}/src/resolve_directories.sh"
+source "${SANDBOX_ROOT}/src/build_mounts.sh"
+source "${SANDBOX_ROOT}/src/run_payload.sh"
+source "${SANDBOX_ROOT}/src/show_status.sh"
 
 main() {
 	read_config || exit 1
-	APP=$(config_query -r '.default' 2>/dev/null) || {
-		echo "cannot parse config: $CONFIG" >&2
-		exit 1
-	}
-	[[ -n $APP && $APP != null ]] || {
-		echo "no default app in $CONFIG" >&2
-		exit 1
-	}
+	APP=""
 
 	DIRECTORY_ARGS=()
 	ENV_ARGS=()
@@ -39,12 +32,17 @@ main() {
 
 	parse_args "$@"
 
+	if [[ $MODE == run && -z $APP ]]; then
+		echo "choose an app with --app NAME or use its installed wrapper" >&2
+		exit 1
+	fi
+
 	if [[ $EUID -ne 0 || -z ${SUDO_UID:-} ]]; then
 		echo "sandbox must be run under sudo; inside the sandbox you are yourself" >&2
 		usage
 	fi
 
-	[[ $APP =~ ^[a-z][a-z0-9-]*$ ]] || {
+	[[ $MODE != run || $APP =~ ^[a-z][a-z0-9-]*$ ]] || {
 		echo "invalid app name: $APP" >&2
 		exit 1
 	}
@@ -58,20 +56,20 @@ main() {
 }
 
 cmd_up() {
-	"$SANDBOX_ROOT/host/up" "$PWD"
+	"$SANDBOX_ROOT/up" "$PWD"
 	if systemctl is-active --quiet sandbox-proxy.service 2>/dev/null; then
 		echo "proxy: active (pid $(systemctl show -p MainPID --value sandbox-proxy.service))"
 		return
 	fi
 	echo "proxy: no systemd unit; running in the foreground (Ctrl-C stops it)" >&2
-	exec python3 "$PROXY_DIR/sandbox_proxy.py" --apps-json "$PROXY_CONFIG"
+	exec python3 "$PROXY_DIR/proxy.py" --apps-json "$PROXY_CONFIG"
 }
 
 cmd_down() {
 	if ! systemctl is-active --quiet sandbox-proxy.service 2>/dev/null; then
-		pkill -f "$PROXY_DIR/sandbox_proxy.py" 2>/dev/null || true
+		pkill -f "$PROXY_DIR/proxy.py" 2>/dev/null || true
 	fi
-	"$SANDBOX_ROOT/host/down"
+	"$SANDBOX_ROOT/down"
 }
 
 parse_args() {
@@ -129,7 +127,8 @@ add_env() {
 }
 
 usage() {
-	echo "usage: sudo bin/sandbox [--app NAME] [--offline] [--directory DIR] [--env VAR[=VAL]]... [up|down|status|CMD [ARGS...]]" >&2
+	echo "usage: sudo sandbox --app NAME [--offline] [--directory DIR] [--env VAR[=VAL]]... [CMD [ARGS...]]" >&2
+	echo "       sudo sandbox {up|down|status}" >&2
 	exit 1
 }
 

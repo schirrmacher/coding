@@ -95,7 +95,7 @@ install-shell:
 	done
 
 install-sandbox:
-	@$(SANDBOX_DIR)/bin/sandbox_wrappers
+	@$(SANDBOX_DIR)/install
 
 .PHONY: install-apps
 
