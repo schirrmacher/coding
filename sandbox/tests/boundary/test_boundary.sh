@@ -52,8 +52,6 @@ main() {
 		while IFS= read -r directory; do
 			check "configuration is read-only: $directory" python3 "$PROBE" readonly-config "$directory"
 		done < <(jq -r '.[]' <<< "$SANDBOX_TEST_CONFIGS")
-	elif [[ -n ${SANDBOX_TEST_CONFIG:-} ]]; then
-		check "sandbox configuration is read-only" python3 "$PROBE" readonly-config "$SANDBOX_TEST_CONFIG"
 	fi
 	while IFS= read -r directory; do
 		[[ -d $directory ]] || continue

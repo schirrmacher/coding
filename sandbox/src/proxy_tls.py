@@ -1,7 +1,7 @@
 """TLS ClientHello parsing, SNI filtering, and bidirectional relay."""
 import asyncio
 
-from .common import (
+from proxy_common import (
     CLIENT_HELLO,
     CLIENT_HELLO_LENGTH_FIELD_WIDTHS,
     CLIENT_HELLO_PREFIX_SIZE,
@@ -21,7 +21,7 @@ from .common import (
     TLS_UINT8_SIZE,
     log,
 )
-from .config import Endpoints
+from proxy_config import Endpoints
 
 
 class SniProxy:

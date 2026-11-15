@@ -27,7 +27,7 @@ class RunnerTests(unittest.TestCase):
             script += f"CONFIG={shlex.quote(str(config))}\n"
             return shell(script + overrides + f"\nmain {args}")
         with tempfile.TemporaryDirectory() as temporary:
-            config = native_config(Path(temporary) / "sandbox.toml", {"photocraft": {}})
+            config = native_config(Path(temporary), {"photocraft": {}})
             script += f"CONFIG={shlex.quote(str(config))}\n"
             return shell(script + overrides + f"\nmain {args}")
 
@@ -58,7 +58,7 @@ class RunnerTests(unittest.TestCase):
 
     def test_app_selection_and_installed_exit_codes(self):
         with tempfile.TemporaryDirectory() as directory:
-            config = Path(directory) / "config.toml"
+            config = Path(directory)
             config_data = {"apps": [{"name": "first"}, {"name": "second"}]}
             write_config(config, config_data)
             result = self.run_main("--installed", config=config)
@@ -81,9 +81,9 @@ class RunnerTests(unittest.TestCase):
             script += "ip() { echo 'unexpected ip' >&2; return 1; }\n"
             script += "systemctl() { echo 'unexpected systemctl' >&2; return 1; }\n"
             host_scripts = (
-                *sorted((ROOT / "bin").iterdir()),
-                *sorted((ROOT / "host").iterdir()),
-                *sorted((ROOT / "lib").glob("*.sh")),
+                *(ROOT / name for name in ("run", "install", "up", "down")),
+                ROOT / "src/open_browser",
+                *sorted((ROOT / "src").glob("*.sh")),
             )
             for path in host_scripts:
                 script += f"source {shlex.quote(str(path))}\n"
@@ -95,7 +95,7 @@ class RunnerTests(unittest.TestCase):
     def test_host_entrypoints_are_executable(self):
         for name in ("up", "down"):
             with self.subTest(name=name):
-                self.assertTrue(os.access(ROOT / "host" / name, os.X_OK))
+                self.assertTrue(os.access(ROOT / name, os.X_OK))
 
     def test_installed_checks_aggregate_failures_and_clean_fixtures(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -130,7 +130,7 @@ installed_checks
                 '#!/bin/bash\nprintf "%s\\n" "$SANDBOX_TEST_PASSED" "$SANDBOX_TEST_ENDPOINTS"\n'
                 '[[ -f "$(dirname "$0")/boundary_probe.py" ]]\n')
             (boundary / "boundary_probe.py").write_text("# transported fixture\n")
-            config = path / "config.toml"
+            config = path
             runtime = path / "runtime.json"
             config_data = {
                 "apps": [
@@ -215,7 +215,7 @@ class BoundaryTests(unittest.TestCase):
 
     def test_config_probe_refuses_to_modify_a_writable_host_file(self):
         with tempfile.TemporaryDirectory() as directory:
-            config = Path(directory) / "sandbox.toml"
+            config = Path(directory) / "rules"
             config.write_text("preserve config\n")
             with self.assertRaisesRegex(AssertionError, "mount is writable"):
                 probe.readonly_config(config)

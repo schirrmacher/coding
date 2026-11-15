@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Remove sandbox host setup. Usage: sudo host/down
+# Remove sandbox host setup. Usage: sudo down
 
 set -euo pipefail
 

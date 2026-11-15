@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Generate managed PATH wrappers and desktop entries. See ../README.md.
+# Generate managed PATH wrappers and desktop entries. See README.md.
 
 set -euo pipefail
 
-SANDBOX_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-CONFIG="$SANDBOX_ROOT/sandbox.toml"
-source "$SANDBOX_ROOT/lib/read_definitions.sh"
-LAUNCHER="$SANDBOX_ROOT/bin/sandbox"
+SANDBOX_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CONFIG="$SANDBOX_ROOT"
+source "$SANDBOX_ROOT/src/read_definitions.sh"
+LAUNCHER="$SANDBOX_ROOT/run"
 BIN_DIR="$HOME/.local/bin"
 DESKTOP_DIR="$HOME/.local/share/applications"
 MARKER="sandbox-managed"
@@ -14,7 +14,7 @@ BACKUP_DIR="$HOME/.local/share/sandbox/original-launchers"
 DESKTOP_BACKUP_DIR="$HOME/.local/share/sandbox/original-desktop-entries"
 SYSTEM_DESKTOP_DIR=/usr/share/applications
 
-source "${SANDBOX_ROOT}/lib/install_launchers.sh"
+source "${SANDBOX_ROOT}/src/install_launchers.sh"
 
 main() {
 	if [[ $(uname -s) != Linux ]]; then
@@ -23,10 +23,6 @@ main() {
 	fi
 
 	read_config || exit 1
-	[[ -f $CONFIG ]] || {
-		echo "config not found: $CONFIG" >&2
-		exit 1
-	}
 	command -v jq >/dev/null || {
 		echo "jq is required to parse $CONFIG" >&2
 		exit 1

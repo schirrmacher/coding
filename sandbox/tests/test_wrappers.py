@@ -15,13 +15,13 @@ def bash(functions, command):
 
 class WrapperTests(unittest.TestCase):
     def test_installation_skips_non_linux_before_loading_config(self):
-        source = "source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers"))
+        source = "source " + shlex.quote(str(ROOT / "install"))
         script = '''
 uname() { echo Darwin; }
 read_config() { echo 'unexpected configuration read' >&2; return 1; }
 prepare_installation() { echo 'unexpected runtime preparation' >&2; return 1; }
 generate_launchers() { echo 'unexpected launcher write' >&2; return 1; }
-CONFIG=/nonexistent/sandbox.toml
+CONFIG=/nonexistent/definitions
 main
 '''
         result = bash(source, script)
@@ -30,10 +30,10 @@ main
         self.assertEqual(result.stderr, "")
 
     def test_linux_installation_reaches_existing_flow(self):
-        source = "source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers"))
+        source = "source " + shlex.quote(str(ROOT / "install"))
         script = '''
 uname() { echo Linux; }
-CONFIG="$SANDBOX_ROOT/sandbox.toml"
+CONFIG="$SANDBOX_ROOT"
 read_config() { echo read_config; }
 validate_launcher_config() { echo validate_launcher_config; }
 prepare_installation() { echo prepare_installation; }
@@ -50,10 +50,10 @@ main
         ])
 
     def test_wrapper_preserves_command_and_forwarded_arguments(self):
-        functions = "source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers"))
+        functions = "source " + shlex.quote(str(ROOT / "install"))
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
-            config = path / "config.toml"
+            config = path
             command = ["/path with spaces/tool", "two words", "*.py", "a=b"]
             config_data = {"apps": [{"name": "demo", "cmd": command}]}
             write_config(config, config_data)
@@ -84,10 +84,10 @@ bash "$BIN_DIR/demo" 'forwarded value' '''
             executable.write_text("#!/bin/bash\nexit 0\n")
             executable.chmod(0o755)
             (path / "codex").symlink_to(executable)
-            config = path / "config.toml"
+            config = path
             config_data = {"apps": [{"name": "codex", "cmd": [str(executable)]}]}
             write_config(config, config_data)
-            source = "source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers"))
+            source = "source " + shlex.quote(str(ROOT / "install"))
             script = f'''CONFIG={shlex.quote(str(config))}; BIN_DIR={shlex.quote(directory)}
 BACKUP_DIR="$BIN_DIR/backups"
 write_wrapper codex
@@ -112,14 +112,14 @@ write_wrapper codex
                     (path / "backups/codex").symlink_to("/unexpected")
                 else:
                     launcher.write_text("unmanaged launcher")
-                config = path / "config.toml"
+                config = path
                 config_data = {"apps": [{"name": "codex", "cmd": [str(executable)]}]}
                 write_config(config, config_data)
                 script = f'''
 CONFIG={shlex.quote(str(config))}; BIN_DIR={shlex.quote(directory)}; BACKUP_DIR="$BIN_DIR/backups"
 write_wrapper codex
 '''
-                result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers")), script)
+                result = bash("source " + shlex.quote(str(ROOT / "install")), script)
                 self.assertNotEqual(result.returncode, 0)
                 self.assertEqual(launcher.is_symlink(), conflict)
                 if not conflict:
@@ -129,7 +129,7 @@ write_wrapper codex
     def test_wrapper_propagates_sudo_failure_without_running_payload(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)
-            config = path / "config.toml"
+            config = path
             config_data = {"apps": [{"name": "demo", "cmd": ["/bin/true"]}]}
             write_config(config, config_data)
             sudo = path / "sudo"
@@ -141,7 +141,7 @@ write_wrapper demo
 export PATH="$BIN_DIR:$PATH"
 "$BIN_DIR/demo"
 '''
-            result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers")), script)
+            result = bash("source " + shlex.quote(str(ROOT / "install")), script)
             self.assertEqual(result.returncode, 23)
 
 
@@ -149,10 +149,10 @@ export PATH="$BIN_DIR:$PATH"
         from test_support import native_config
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary)
-            config = native_config(path / "sandbox.toml", {"demo": {
+            config = native_config(path, {"demo": {
                 "launch.sh": '#!/bin/sh\nexec /bin/echo "$@"\n',
                 "org.example.Demo.desktop": '[Desktop Entry]\nType=Application\nName=Demo\nExec=demo %U\nIcon=demo\n'}})
-            result = bash("source " + shlex.quote(str(ROOT / "bin/sandbox_wrappers")), f'''CONFIG={shlex.quote(str(config))}
+            result = bash("source " + shlex.quote(str(ROOT / "install")), f'''CONFIG={shlex.quote(str(config))}
 DESKTOP_DIR={shlex.quote(str(path))}; BIN_DIR={shlex.quote(str(path / 'bin'))}
 write_desktop_entry demo
 ''')

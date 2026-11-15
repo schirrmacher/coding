@@ -12,7 +12,7 @@ run_payload() {
 
 build_launch_command() {
 	local plan
-	plan=$(python3 "$SANDBOX_ROOT/lib/build_launch.py" \
+	plan=$(python3 "$SANDBOX_ROOT/src/build_launch.py" \
 		"$NS" "$SUDO_UID" "$SUDO_GID" "$WORKING_DIRECTORY" "$HOME_DIR" \
 		"${TERM:-dumb}" "${LANG:-C.UTF-8}" "$APP" "${DIRECTORIES[*]}" "$PROXY_HOST" "$PROXY_PORT" \
 		apparmor "${#AA_EXEC[@]}" "${AA_EXEC[@]}" \
@@ -33,7 +33,7 @@ prepare_network() {
 	NS="sandbox-$APP"
 	PROFILE="sandbox-$APP"
 	ip netns list | grep -q "^$NS " || {
-		echo "network namespace $NS missing; add app '$APP' to sandbox/sandbox.toml and run:" >&2
+		echo "network namespace $NS missing; define app '$APP' under sandbox/apps/ and run:" >&2
 		echo "  sudo sandbox up" >&2
 		exit 1
 	}
@@ -74,5 +74,3 @@ resolve_proxy_host() {
 	local app=$1
 	jq -r --arg app "$app" 'first(.apps[] | select(.name == $app) | .ip)' "$PROXY_CONFIG" 2>/dev/null || true
 }
-
-# Mask only existing directories; creating a mountpoint on the read-only root fails.

@@ -19,11 +19,10 @@ def run_bash(script):
 
 def write_config(path, data):
     path = Path(path)
-    apps = path.parent / "apps"
+    apps = path / "apps"
     for app in data["apps"]:
         folder = apps / app["name"]
         folder.mkdir(parents=True)
         for name in ("apparmor", "mounts.args", "endpoints"):
             (folder / name).write_text("")
         (folder / "launch.sh").write_text("#!/bin/sh\nexec " + shlex.join(app["cmd"]) + ' "$@"\n')
-    path.write_text('default = "' + data["apps"][0]["name"] + '"\n[net]\nsubnet="10.77.0.0/24"\n[proxy]\nsni_port=3128\ndns_port=53\n')

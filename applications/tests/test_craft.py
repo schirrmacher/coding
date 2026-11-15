@@ -26,7 +26,7 @@ class CraftInstallerTests(unittest.TestCase):
             applications.mkdir()
             for app in ("photocraft", "vectorcraft", "designcraft", "wordcraft", "deckcraft", "gridcraft"):
                 (applications / f"{app}-linux.AppImage").write_bytes(b"older release")
-            config = home / "sandbox.toml"
+            config = home / "application.conf"
             config.write_text("preserve config")
             def version(command, **kwargs):
                 if "--appimage-extract" in command:

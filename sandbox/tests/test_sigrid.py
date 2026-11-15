@@ -8,7 +8,7 @@ from pathlib import Path
 
 from test_support import ROOT, load_module, run_bash, write_config
 
-loader = load_module("sigrid_config", ROOT / "lib/read_definitions.py")
+loader = load_module("sigrid_config", ROOT / "src/read_definitions.py")
 
 
 class SigridTests(unittest.TestCase):
@@ -16,7 +16,7 @@ class SigridTests(unittest.TestCase):
         from test_support import native_config
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            path = native_config(root / "sandbox.toml", {"enabled": {"apparmor": "#include <sandbox/secret-service>\n"}, "disabled": {}})
+            path = native_config(root, {"enabled": {"apparmor": "#include <sandbox/secret-service>\n"}, "disabled": {}})
             apps = {app["name"]: app for app in loader.read_config(path, root / "absent")["apps"]}
             self.assertIn("org.freedesktop.secrets", apps["enabled"]["apparmor"])
             self.assertIn("owner /run/user/*/bus rw", apps["enabled"]["apparmor"])
@@ -26,7 +26,7 @@ class SigridTests(unittest.TestCase):
         from test_support import native_config
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            path = native_config(root / "sandbox.toml", {"agent": {"mounts.args": "--ro-bind\n/run/user/${UID}/bus\n/run/user/${UID}/bus\n"}})
+            path = native_config(root, {"agent": {"mounts.args": "--ro-bind\n/run/user/${UID}/bus\n/run/user/${UID}/bus\n"}})
             app = loader.read_config(path, root / "absent")["apps"][0]
             self.assertEqual(app["mounts"][0], "--ro-bind")
             self.assertTrue(app["mounts"][1].endswith("/bus"))

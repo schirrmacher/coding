@@ -5,15 +5,15 @@ import unittest
 from pathlib import Path
 from test_support import ROOT, load_module, native_config, run_bash
 
-desktop = load_module("native_desktop", ROOT / "lib/render_desktop.py")
+desktop = load_module("native_desktop", ROOT / "src/render_desktop.py")
 
 
 class LauncherTests(unittest.TestCase):
     def test_native_gui_include_contains_display_gpu_fonts_and_filechooser_permissions(self):
-        loader = load_module("gui_loader", ROOT / "lib/read_definitions.py")
+        loader = load_module("gui_loader", ROOT / "src/read_definitions.py")
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            path = native_config(root / "sandbox.toml", {"gui": {"apparmor": "#include <sandbox/gui>\n"}, "cli": {}})
+            path = native_config(root, {"gui": {"apparmor": "#include <sandbox/gui>\n"}, "cli": {}})
             apps = {app["name"]: app for app in loader.read_config(path, root / "absent")["apps"]}
             text = apps["gui"]["apparmor"]
             for permission in ("<abstractions/X>", "<abstractions/fonts>", "/sys/devices/pci*/{,**}",
@@ -28,7 +28,7 @@ class LauncherTests(unittest.TestCase):
             entry = ('[Desktop Entry]\nName=Visual Studio Code\nIcon=vscode\nStartupWMClass=Code\n'
                      'Exec="/path with spaces/code" %F\nMimeType=text/plain;\n'
                      '[Desktop Action new]\nName=New Window\nExec=code --new-window %F\n')
-            config = native_config(root / "sandbox.toml", {"vscode": {
+            config = native_config(root, {"vscode": {
                 "launch.sh": '#!/bin/sh\nexec /usr/bin/code "$@"\n', "wrappers": "code\n",
                 "com.microsoft.VSCode.desktop": entry,
                 "com.microsoft.VSCode.UrlHandler.desktop": '[Desktop Entry]\nNoDisplay=true\nMimeType=x-scheme-handler/vscode;\nExec=code --open-url %U\n'}})
@@ -38,7 +38,7 @@ class LauncherTests(unittest.TestCase):
             original.write_text("[Desktop Entry]\nName=Personal Code\nExec=code %F\n")
             snapshot = original.read_text()
             for _ in range(2):
-                result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox_wrappers'))}
+                result = run_bash(f'''source {shlex.quote(str(ROOT / 'install'))}
 CONFIG={shlex.quote(str(config))}; DESKTOP_DIR={shlex.quote(str(installed))}
 DESKTOP_BACKUP_DIR={shlex.quote(str(root / 'backups'))}; BIN_DIR={shlex.quote(str(root / 'bin'))}
 write_desktop_entry vscode
@@ -61,7 +61,7 @@ write_desktop_entry vscode
             backups = root / "backups"
             backups.mkdir()
             (backups / path.name).write_text("conflict")
-            result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox_wrappers'))}
+            result = run_bash(f'''source {shlex.quote(str(ROOT / 'install'))}
 DESKTOP_BACKUP_DIR={shlex.quote(str(backups))}
 preserve_desktop_entry {shlex.quote(str(path))}
 ''')

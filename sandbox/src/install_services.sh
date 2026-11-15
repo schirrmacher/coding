@@ -5,18 +5,18 @@ install_proxy() {
 
     [[ ${CONFIG_SOURCE:-} == "$CONFIG" ]] || read_config || return 1
     local temporary runtime
-    runtime=$(python3 "$SCRIPT_DIR/../lib/read_definitions.py" network proxy "$POOL_BASE" <<< "$CONFIG_JSON") || return 1
+    runtime=$(python3 "$SCRIPT_DIR/src/read_definitions.py" network proxy "$POOL_BASE" <<< "$CONFIG_JSON") || return 1
     mkdir -p "$PROXY_DIR"
     temporary=$(mktemp "$PROXY_DIR/.apps.XXXXXX") || return 1
     printf '%s\n' "$runtime" > "$temporary"
-    cp "$SCRIPT_DIR/../proxy/sandbox_proxy.py" "$PROXY_DIR/" || { rm -f "$temporary"; return 1; }
-    cp -R "$SCRIPT_DIR/../proxy/sandbox_proxy_core" "$PROXY_DIR/" || { rm -f "$temporary"; return 1; }
+    cp "$SCRIPT_DIR/src/proxy.py" "$PROXY_DIR/" || { rm -f "$temporary"; return 1; }
+    cp "$SCRIPT_DIR"/src/proxy_*.py "$PROXY_DIR/" || { rm -f "$temporary"; return 1; }
     chmod 644 "$temporary"
     mv -f "$temporary" "$PROXY_DIR/apps.json"
 	echo "==> proxy config: $PROXY_DIR/apps.json"
 
 	if [[ -d /run/systemd/system ]] && command -v systemctl >/dev/null; then
-		cp "$SCRIPT_DIR/../proxy/sandbox-proxy.service" /etc/systemd/system/
+		cp "$SCRIPT_DIR/rules/sandbox-proxy.service" /etc/systemd/system/
 		systemctl daemon-reload
 		systemctl enable --quiet sandbox-proxy.service
 		systemctl restart sandbox-proxy.service
@@ -34,7 +34,7 @@ install_sudoers() {
 		echo "WARNING: no SUDO_USER; skipping sudoers setup" >&2
 		return
 	}
-	launcher=$(realpath "$SCRIPT_DIR/../bin/sandbox")
+	launcher=$(realpath "$SCRIPT_DIR/run")
 	rules+=("$user ALL=(root) NOPASSWD: $launcher")
 	rules+=("$user ALL=(root) NOPASSWD: /usr/local/bin/sandbox")
 	temporary_file=$(mktemp)
@@ -62,5 +62,3 @@ install_sudoers() {
 	rm -f "$temporary_file"
 	echo "==> sudoers: installed /etc/sudoers.d/sandbox (launcher + /usr/local/bin/sandbox)"
 }
-
-# Reserve four addresses per app: host 4i+1, namespace 4i+2.

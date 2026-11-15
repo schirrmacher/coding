@@ -18,9 +18,22 @@ public web networking. `--offline` disconnects either mode for one launch.
 
 ## App definitions
 
-`sandbox.toml` contains only `default`, `[net]`, and `[proxy]`. Apps are immediate
-subdirectories of `apps/`, discovered in filename order. Their directory names
-are their identities. App TOML and feature flags are no longer accepted.
+Apps are immediate subdirectories of `apps/`, discovered in filename order.
+Their directory names are their identities. Configuration lives in these native
+per-app files and their personal replacements. Shared implementation defaults
+use subnet `10.77.0.0/24`, HTTPS proxy port `3128`, and DNS port `53`.
+
+```text
+sandbox/
+├── run        # Run an app or dispatch up, down, status
+├── install    # Generate PATH wrappers and desktop entries
+├── up         # Install host confinement
+├── down       # Remove host confinement
+├── apps/      # Native per-app configuration
+├── rules/     # Shared enforcement rules and proxy service unit
+├── src/       # Shared implementation
+└── tests/     # Local and installed checks
+```
 
 ```text
 apps/codex/
@@ -122,11 +135,12 @@ fi
 exec "$@"
 ```
 
-Managed PATH wrappers invoke the default launcher and forward arguments. Explicit
-`sandbox --app NAME command ...` invocations pass through the same environment
+Managed PATH wrappers pass their app identity to the launcher and forward arguments. Explicit
+`sudo sandbox --app NAME command ...` invocations pass through the same environment
 setup using the reserved `--sandbox-command` marker. Without a launch script,
-the default payload is Bash and explicit commands run directly. `--env NAME=value`
-and `--directory PATH` keep their existing CLI behavior.
+the payload is Bash when no command is supplied; explicit commands run directly. `--env NAME=value`
+and `--directory PATH` keep their existing CLI behavior. Payload launches require
+`--app NAME`; administrative `up`, `down`, and `status` commands do not.
 
 Apps with launch scripts receive a wrapper named after the app unless `wrappers`
 lists different names. Native desktop entries retain their IDs, metadata, field

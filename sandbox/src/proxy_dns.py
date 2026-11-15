@@ -2,7 +2,7 @@
 import asyncio
 from pathlib import Path
 
-from .common import (
+from proxy_common import (
     DNS_PORT,
     DNS_TCP_LENGTH_SIZE,
     DNS_TIMEOUT,

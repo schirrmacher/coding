@@ -34,9 +34,9 @@ class UvPreparationTests(unittest.TestCase):
             backup = home / ".local/share/sandbox/original-launchers/uv"
             self.assertEqual(executable.read_bytes(), original)
             self.assertEqual(backup.read_bytes(), original)
-            config = home / "config.toml"
+            config = home
             write_config(config, {"apps": [{"name": "uv", "cmd": ["/usr/bin/env", str(executable)]}]})
-            script = f'''source {shlex.quote(str(ROOT / "bin/sandbox_wrappers"))}
+            script = f'''source {shlex.quote(str(ROOT / "install"))}
 HOME={shlex.quote(directory)}; CONFIG={shlex.quote(str(config))}
 BIN_DIR="$HOME/.local/bin"; BACKUP_DIR="$HOME/.local/share/sandbox/original-launchers"
 write_wrapper uv

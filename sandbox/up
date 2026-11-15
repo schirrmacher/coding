@@ -1,18 +1,37 @@
 #!/usr/bin/env bash
-# Install host confinement and start the proxy. See ../README.md.
+# Install host confinement and start the proxy. See README.md.
 
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-CONFIG="$SCRIPT_DIR/../sandbox.toml"
+CONFIG="$SCRIPT_DIR"
 PROXY_DIR=/usr/local/lib/sandbox
-source "$SCRIPT_DIR/../lib/read_definitions.sh"
-source "$SCRIPT_DIR/../lib/render_apparmor.sh"
+source "$SCRIPT_DIR/src/read_definitions.sh"
+source "$SCRIPT_DIR/src/render_apparmor.sh"
 
-source "$SCRIPT_DIR/../lib/host/configure_network.sh"
-source "$SCRIPT_DIR/../lib/host/install_apparmor_profiles.sh"
-source "$SCRIPT_DIR/../lib/host/install_services.sh"
-source "$SCRIPT_DIR/../lib/host/create_app_state.sh"
+source "$SCRIPT_DIR/src/configure_network.sh"
+source "$SCRIPT_DIR/src/install_apparmor_profiles.sh"
+source "$SCRIPT_DIR/src/install_services.sh"
+
+prepare_app_state() {
+	[[ ${CONFIG_SOURCE:-} == "$CONFIG" ]] || read_config || return 1
+	config_query -e 'any(.apps[]; (.dir.state // [] | length) > 0)' >/dev/null || return 0
+	local home
+	local uid=${SUDO_UID:-$UID} gid=${SUDO_GID:-$(id -g)}
+	home=$(getent passwd "$uid" | cut -d: -f6)
+	setpriv --reuid="$uid" --regid="$gid" --init-groups --reset-env \
+		python3 "$SCRIPT_DIR/src/create_app_state.py" "$home" <<< "$CONFIG_JSON"
+}
+
+validate_app_directories() {
+	local app paths path
+	for app in "${APPS[@]}"; do
+		paths=$(app_writable_directories "$app" && app_readable_directories "$app") || return 1
+		while IFS= read -r path; do
+			[[ -z $path || -e $path ]] || die "app '$app': required bind source missing: $path; run applications/install $app if application setup is needed"
+		done <<< "$paths"
+	done
+}
 
 main() {
 	[[ $EUID -eq 0 ]] || {
@@ -43,12 +62,12 @@ main() {
 	install_sudoers
 
 	BASE="sudo sandbox"
-	[[ -e /usr/local/bin/sandbox ]] || BASE="sudo $DEFAULT_PROJECT_DIRECTORY/sandbox/bin/sandbox"
+	[[ -e /usr/local/bin/sandbox ]] || BASE="sudo $DEFAULT_PROJECT_DIRECTORY/sandbox/run"
 
 	echo
-	echo "Sandbox ready. Shell: $BASE [--app NAME] bash"
+	echo "Sandbox ready. Shell: $BASE --app NAME bash"
 	echo "   Status: $BASE status"
-	echo "   Test:   $BASE bash $DEFAULT_PROJECT_DIRECTORY/sandbox/tests/boundary/test_boundary.sh"
+	echo "   Test:   $BASE --app NAME bash $DEFAULT_PROJECT_DIRECTORY/sandbox/tests/boundary/test_boundary.sh"
 }
 
 load_config() {
@@ -88,7 +107,7 @@ die() {
 }
 
 usage() {
-	echo "usage: sudo host/up [project-directory]" >&2
+	echo "usage: sudo sandbox/up [project-directory]" >&2
 	exit 1
 }
 

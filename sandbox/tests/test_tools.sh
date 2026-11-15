@@ -3,8 +3,8 @@
 set -euo pipefail
 
 SANDBOX_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-CONFIG="$SANDBOX_ROOT/sandbox.toml"
-source "$SANDBOX_ROOT/lib/read_definitions.sh"
+CONFIG="$SANDBOX_ROOT"
+source "$SANDBOX_ROOT/src/read_definitions.sh"
 TOOL_FIXTURE=
 
 cleanup_tool_fixture() {

@@ -71,7 +71,7 @@ print_proxy_status() {
 		else
 			echo "proxy:    active"
 		fi
-	elif [[ -x $PROXY_DIR/sandbox_proxy.py ]]; then
+	elif [[ -x $PROXY_DIR/proxy.py ]]; then
 		echo "proxy:    not running (runtime present; sudo sandbox up starts it)"
 	else
 		echo "proxy:    not installed"

@@ -1,17 +1,41 @@
 """Launch plans preserve native argument order and final protection layers."""
 import json
+import os
 import shlex
 import tempfile
 import unittest
 from pathlib import Path
 from test_support import ROOT, load_module, native_config, run_bash
 
-loader = load_module("launch_native_loader", ROOT / "lib/read_definitions.py")
+loader = load_module("launch_native_loader", ROOT / "src/read_definitions.py")
 
 
 class LauncherTests(unittest.TestCase):
+    def test_payload_requires_app_identity_before_privilege_checks(self):
+        for arguments in ("", "echo example", "--app='' echo example"):
+            with self.subTest(arguments=arguments):
+                result = run_bash(f"source {shlex.quote(str(ROOT / 'run'))}\nmain {arguments}")
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("choose an app with --app NAME", result.stderr)
+                self.assertNotIn("must be run under sudo", result.stderr)
+
+    def test_administrative_commands_do_not_require_app_identity(self):
+        for mode in ("up", "down", "status"):
+            with self.subTest(mode=mode):
+                result = run_bash(f"""source {shlex.quote(str(ROOT / 'run'))}
+export SUDO_UID=$(id -u)
+cmd_{mode}() {{ echo dispatched; }}
+main {mode}
+""")
+                if os.geteuid() == 0:
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    self.assertEqual(result.stdout, "dispatched\n")
+                else:
+                    self.assertIn("must be run under sudo", result.stderr)
+                self.assertNotIn("choose an app", result.stderr)
+
     def test_env_values_preserve_equals_spaces_and_option_like_values(self):
-        result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+        result = run_bash(f'''source {shlex.quote(str(ROOT / 'run'))}
 ENV_ARGS=(); DIRECTORY_ARGS=(); CMD=()
 parse_args --env 'TOKEN=a=b c' --env 'LITERAL=--setenv' echo --env untouched
 printf '%s\\0' "${{ENV_ARGS[@]}}" "${{CMD[@]}}"
@@ -24,10 +48,10 @@ printf '%s\\0' "${{ENV_ARGS[@]}}" "${{CMD[@]}}"
             root = Path(temporary)
             state = root / "state"
             state.mkdir()
-            path = native_config(root / "sandbox.toml", {
+            path = native_config(root, {
                 "demo": {"mounts.args": f"--bind\n{root}\n{root}\n--setenv\nTOKEN\napp-value\n"},
                 "other": {"state": str(state)}})
-            result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+            result = run_bash(f'''source {shlex.quote(str(ROOT / 'run'))}
 CONFIG={shlex.quote(str(path))}; APP=demo; HOME_DIR={shlex.quote(str(root))}
 CMD=(/bin/echo 'two words'); ENV_ARGS=(--setenv TOKEN cli-value --setenv LITERAL --setenv)
 prepare_mounts_and_environment
@@ -42,7 +66,7 @@ printf '%s\\0' "${{LAUNCH_COMMAND[@]}}"
             bind = args.index("--bind")
             self.assertEqual(args[bind + 1:bind + 3], [str(root)] * 2)
             mask = next(index for index in range(len(args) - 1) if args[index:index + 2] == ["--tmpfs", str(state)])
-            config = args.index(str(path))
+            config = args.index(str(ROOT / "run"))
             self.assertLess(bind, mask)
             self.assertLess(mask, config)
             self.assertEqual(args[-3:], ["--", "/bin/echo", "two words"])
@@ -55,8 +79,8 @@ printf '%s\\0' "${{LAUNCH_COMMAND[@]}}"
             with self.subTest(enabled=enabled, display=display), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
                 files = {"mounts.x11.args": ""} if enabled else {}
-                path = native_config(root / "sandbox.toml", {"demo": files})
-                result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+                path = native_config(root, {"demo": files})
+                result = run_bash(f'''source {shlex.quote(str(ROOT / 'run'))}
 CONFIG={shlex.quote(str(path))}; APP=demo; HOME_DIR={shlex.quote(str(root))}
 DISPLAY={shlex.quote(display)}; CMD=(); ENV_ARGS=()
 prepare_mounts_and_environment
@@ -68,12 +92,12 @@ printf '%s' "${{IPC_ARGS[*]}}"
     def test_launch_script_wraps_custom_commands_but_not_its_own_default_invocation(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            path = native_config(root / "sandbox.toml", {"demo": {"launch.sh": '#!/bin/sh\nexec "$@"\n'}})
+            path = native_config(root, {"demo": {"launch.sh": '#!/bin/sh\nexec "$@"\n'}})
             script = str(root / "apps/demo/launch.sh")
             for command, expected in (("CMD=()", ["/bin/sh", script]),
                                       ("CMD=(echo 'two words')", ["/bin/sh", script, "--sandbox-command", "echo", "two words"]),
                                       (f'CMD=(/bin/sh {shlex.quote(script)} --help)', ["/bin/sh", script, "--help"])):
-                result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+                result = run_bash(f'''source {shlex.quote(str(ROOT / 'run'))}
 CONFIG={shlex.quote(str(path))}; APP=demo; HOME_DIR={shlex.quote(str(root))}; ENV_ARGS=()
 {command}
 prepare_mounts_and_environment
@@ -85,10 +109,10 @@ printf '%s\\0' "${{CMD[@]}}"
     def test_launch_refuses_stale_installed_policy(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            path = native_config(root / "sandbox.toml", {"demo": {}})
+            path = native_config(root, {"demo": {}})
             runtime = root / "apps.json"
             runtime.write_text(json.dumps({"policy_fingerprint": "stale", "apps": []}))
-            result = run_bash(f'''source {shlex.quote(str(ROOT / 'bin/sandbox'))}
+            result = run_bash(f'''source {shlex.quote(str(ROOT / 'run'))}
 CONFIG={shlex.quote(str(path))}; PROXY_CONFIG={shlex.quote(str(runtime))}; APP=demo
 ip() {{ echo "sandbox-demo (id: 1)"; }}
 prepare_network

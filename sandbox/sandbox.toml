@@ -1,8 +1,0 @@
-default = "orca"
-
-[net]
-subnet = "10.77.0.0/24"
-
-[proxy]
-sni_port = 3128
-dns_port = 53
