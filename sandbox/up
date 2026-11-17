@@ -99,6 +99,9 @@ require_host_commands() {
     for command in python3 jq ip nft setpriv bwrap sysctl; do
         command -v "$command" >/dev/null || die "missing prerequisite: $command"
     done
+    if config_query -e 'any(.apps[]; .network == "web")' >/dev/null; then
+        command -v iptables >/dev/null || die "missing prerequisite for web networking: iptables"
+    fi
 }
 
 die() {

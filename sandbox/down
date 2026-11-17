@@ -2,6 +2,7 @@
 # Remove sandbox host setup. Usage: sudo down
 
 set -euo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/src/host_forwarding.sh"
 
 main() {
 	if [[ $EUID -ne 0 ]]; then
@@ -14,6 +15,7 @@ main() {
 	rm -rf /usr/local/lib/sandbox
 	systemctl daemon-reload 2>/dev/null || true
 
+	remove_host_forwarding
 	nft list table ip sandbox >/dev/null 2>&1 && nft delete table ip sandbox
 
 	# Remove veths before namespaces to avoid dangling peers.
