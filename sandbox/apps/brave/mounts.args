@@ -46,3 +46,10 @@ ${XAUTHORITY}
 --dev-bind-try
 /dev/dri
 /dev/dri
+
+--setenv
+XDG_CONFIG_HOME
+${HOME}/.local/share/sandbox/brave/config
+--setenv
+XDG_DATA_HOME
+${HOME}/.local/share/sandbox/brave/data

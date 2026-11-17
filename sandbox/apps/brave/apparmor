@@ -27,3 +27,14 @@
 # Temporary placeholders for display sockets and the X11 authority file.
   "/newroot/run/user/${UID}/{,**}" rw,
   "/newroot${HOME}/.Xauthority" rw,
+
+# Launcher redirections and browser process statistics.
+  owner @{PROC}/@{pid}/fd/[0-9]* rw,
+  @{PROC}/@{pid}/{stat,statm} r,
+
+# Browser profile discovery and hardware information.
+  "${HOME}/.local/share/sandbox/" r,
+  /sys/{bus,class}/ r,
+  /sys/devices/system/cpu/{kernel_max,present} r,
+  /sys/devices/system/cpu/cpufreq/policy[0-9]*/cpuinfo_max_freq r,
+  /sys/devices/system/cpu/cpu[0-9]*/microcode/version r,

@@ -1,4 +1,5 @@
 NETWORK_RULES=$(cd "$(dirname "${BASH_SOURCE[0]}")/../rules" && pwd)
+source "$(dirname "${BASH_SOURCE[0]}")/host_forwarding.sh"
 
 # Source-only network operations.
 
@@ -47,7 +48,8 @@ install_firewall() {
 	if config_query -e 'any(.apps[]; .network == "web")' >/dev/null; then
 		sysctl -q -w net.ipv4.ip_forward=1 || return 1
 	fi
-	printf '%s\n' "$rules" | nft -f -
+	printf '%s\n' "$rules" | nft -f - || return 1
+	install_host_forwarding
 }
 
 pool_host_ip() {

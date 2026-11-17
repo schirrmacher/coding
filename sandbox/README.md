@@ -183,6 +183,19 @@ other direct traffic, including QUIC, is blocked. HTTPS falls back to TCP.
 DNS uses the existing forwarder. Host IPv4 forwarding is enabled when installing
 web policy; unrelated host forwarding rules remain owned by the host.
 
+Web networking also requires `iptables`. Setup installs a managed `SANDBOX-WEB`
+chain at the start of the host's `FORWARD` chain so Docker's default DROP policy
+does not block browsing. Exceptions match each web app's address and veth:
+outbound TCP ports 80/443 and established/related replies. The separate nftables
+policy still blocks private destinations and other ports. Setup refreshes these
+exceptions when app addresses change; removing web access or running
+`sudo sandbox down` removes the managed chain without changing Docker's rules
+or the host's default policy.
+
+Run `sudo sandbox up` after reboot, as with the rest of the namespace setup.
+Rerun it after a host firewall reset removes or reorders the forwarding rules.
+Setup does not install an automatic boot or firewall-recovery service.
+
 Without `network`, exact-hostname HTTPS restrictions remain unchanged. Empty
 endpoints select offline mode. `sudo sandbox --app brave --offline COMMAND`
 also selects a private network namespace regardless of the configured mode.
