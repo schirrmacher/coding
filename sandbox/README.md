@@ -43,6 +43,7 @@ apps/codex/
 ├── state             # Optional: state directories to create and isolate
 ├── launch.sh         # Optional: environment setup and default command
 ├── network           # Optional: web enables public HTTP/HTTPS browsing
+├── localhost-ports   # Optional: relay selected host-local TCP services
 ├── wrappers          # Optional: exact PATH-wrapper names, one per line
 ├── mounts.x11.args   # Optional: additional arguments when DISPLAY is present
 └── *.desktop         # Optional: native desktop entries with official filenames
@@ -161,6 +162,36 @@ allocation. Run `sudo sandbox up` after policy edits, then restart apps.
 The launcher refuses stale installed policy.
 
 ## Brave and network modes
+
+### Host localhost services
+
+`localhost-ports` lists TCP ports from 1024 through 65535, one per line; comments
+and empty lines are allowed. Personal replacements use the same format and can
+disable access with an empty file. OpenCode, Orca, and uv opt into port `8765`:
+
+```sh
+curl -v --max-time 10 http://127.0.0.1:8765/health
+uv run python -c 'import urllib.request; print(urllib.request.urlopen("http://127.0.0.1:8765/health", timeout=10).read().decode())'
+```
+
+Setup binds a loopback listener inside each opted-in namespace. A private Unix
+socket connects it to a host-side relay targeting only `127.0.0.1` on the same
+port. This works with Docker-published localhost ports without changing Docker
+or exposing additional host services through the namespace firewall. The whole
+TCP service is reachable, not just `/health`. All processes sharing an opted-in
+namespace share this access; unconfigured namespaces and `--offline` launches
+do not receive it. No relay socket permissions are added to application profiles.
+
+Relays require systemd and `/usr/lib/systemd/systemd-socket-proxyd`; they run as
+the invoking user with hardened services and user-owned mode-0600 Unix sockets.
+`sudo sandbox up` refreshes them, and `sudo sandbox down` removes them.
+`sudo sandbox status` reports listener state; it does not probe upstream health.
+Occupied namespace ports fail setup. Upstream failures appear in the service
+journal, and later connections recover after the container starts or restarts.
+Run setup explicitly after reboot; no new boot service is enabled. Docker's
+`search-search-1` can keep its existing `127.0.0.1:8765->8765/tcp` mapping.
+
+### Public web access
 
 Brave Browser has its own `brave` definition, PATH wrapper, and desktop entry.
 Its profile is `~/.local/share/sandbox/brave`; the original browser profile stays

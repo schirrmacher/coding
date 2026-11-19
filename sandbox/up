@@ -12,6 +12,7 @@ source "$SCRIPT_DIR/src/render_apparmor.sh"
 source "$SCRIPT_DIR/src/configure_network.sh"
 source "$SCRIPT_DIR/src/install_apparmor_profiles.sh"
 source "$SCRIPT_DIR/src/install_services.sh"
+source "$SCRIPT_DIR/src/manage_localhost.sh"
 
 prepare_app_state() {
 	[[ ${CONFIG_SOURCE:-} == "$CONFIG" ]] || read_config || return 1
@@ -59,6 +60,7 @@ main() {
 	install_firewall
 	install_apparmor
 	install_proxy
+	install_localhost_services
 	install_sudoers
 
 	BASE="sudo sandbox"
@@ -83,11 +85,15 @@ load_config() {
 	[[ ${#APPS[@]} -le $POOL_CAPACITY ]] \
 		|| die "$CONFIG: $POOL_CAPACITY apps fit in $POOL_CIDR (4 addresses each); found ${#APPS[@]}"
 
+    stop_localhost_services
     if [[ -r $PROXY_DIR/apps.json ]] && ! jq -e --arg fingerprint "$(config_query -r '.policy_fingerprint')" '.policy_fingerprint == $fingerprint' "$PROXY_DIR/apps.json" >/dev/null; then
         local namespace
         while read -r namespace _; do
             [[ $namespace == sandbox-* ]] || continue
-            [[ -z $(ip netns pids "$namespace") ]] || die "close sandbox applications before replacing changed policy: $namespace is in use"
+            if [[ -n $(ip netns pids "$namespace") ]]; then
+                start_localhost_services || true
+                die "close sandbox applications before replacing changed policy: $namespace is in use"
+            fi
         done < <(ip netns list)
     fi
 	prepare_app_state
@@ -99,6 +105,7 @@ require_host_commands() {
     for command in python3 jq ip nft setpriv bwrap sysctl; do
         command -v "$command" >/dev/null || die "missing prerequisite: $command"
     done
+    require_localhost_commands || die "localhost relay prerequisites failed"
     if config_query -e 'any(.apps[]; .network == "web")' >/dev/null; then
         command -v iptables >/dev/null || die "missing prerequisite for web networking: iptables"
     fi
