@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import ipaddress
 
 NAME = r"[a-z][a-z0-9-]*"
-FILES = {"apparmor", "mounts.args", "mounts.x11.args", "endpoints", "state", "launch.sh", "network", "wrappers"}
+FILES = {"apparmor", "mounts.args", "mounts.x11.args", "endpoints", "state", "launch.sh", "network", "wrappers", "localhost-ports"}
 VARIABLES = {"HOME", "UID", "DISPLAY", "WAYLAND_DISPLAY", "XAUTHORITY", "XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS"}
 # Only mount, environment and IPC options belong in per-app argument files.
 ARITY = {"--bind": 2, "--ro-bind": 2, "--bind-try": 2, "--ro-bind-try": 2,
@@ -169,11 +169,15 @@ def read_config(path, local_path=None, home=None):
         mode = "web" if network else "restricted"
         if mode == "web" and endpoints:
             raise ValueError(f"{name}: web network cannot have endpoint entries")
+        raw_ports = lines(texts.get("localhost-ports", ""))
+        if any(not re.fullmatch(r"[0-9]+", port) or not 1024 <= int(port) <= 65535 for port in raw_ports):
+            raise ValueError(f"{name}: localhost-ports must contain TCP ports between 1024 and 65535")
+        localhost_ports = list(dict.fromkeys(int(port) for port in raw_ports))
         wrappers = lines(texts.get("wrappers", name)) if "launch.sh" in files else []
         if any(not re.fullmatch(NAME, wrapper) for wrapper in wrappers):
             raise ValueError(f"{name}: invalid wrapper name")
         app = {"name": name, "files": files, "mounts": mounts, "mounts_x11": x11,
-               "dir": grants, "endpoints": endpoints, "network": mode, "wrappers": wrappers,
+               "dir": grants, "endpoints": endpoints, "network": mode, "wrappers": wrappers, "localhost_ports": localhost_ports,
                "apparmor": apparmor(texts["apparmor"], RULES, home),
                "desktops": {key: expand(value, values) for key, value in texts.items() if key.endswith(".desktop")}}
         if "launch.sh" in files:

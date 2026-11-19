@@ -8,6 +8,7 @@ cmd_status() {
 	print_firewall_status
 	print_apparmor_status "${apps[@]}"
 	print_proxy_status
+	print_localhost_status
 	print_sudoers_status
 }
 
@@ -84,4 +85,17 @@ print_sudoers_status() {
 	else
 		echo "sudoers:  not installed"
 	fi
+}
+
+print_localhost_status() {
+    local app port state
+    while IFS=$'\t' read -r app port; do
+        [[ -n $app ]] || continue
+        state=inactive
+        if systemctl is-active --quiet "sandbox-localhost-app-$app-$port.service" 2>/dev/null \
+            && systemctl is-active --quiet "sandbox-localhost-host-$port.socket" 2>/dev/null; then
+            state=active
+        fi
+        printf 'localhost: %s 127.0.0.1:%s %s\n' "$app" "$port" "$state"
+    done < <(config_query -r '.apps[] | .name as $app | (.localhost_ports // [])[] | [$app, .] | @tsv')
 }
