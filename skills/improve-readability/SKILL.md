@@ -1,6 +1,6 @@
 ---
 name: improve-readability
-description: Flatten nested code, reorder by importance, extract inline complexity, and clarify names. Reduces deep indentation, puts main logic first, moves complex inline structures into named variables, and renames unclear identifiers.
+description: Improve code readability by flattening nesting, extracting inline complexity, clarifying names, and ordering code by importance. Group enum-like declarations logically and keep each case's implementation in a distinct block.
 triggers:
   - phrase: "/improve-readability"
   - phrase: "improve readability"
@@ -16,13 +16,15 @@ Code clarity framework.
 
 ## Purpose
 
-Improve the **readability** of the code specified by `$ARGUMENTS`. Apply six targeted transformations that make code easier to scan, understand, and maintain:
+Improve the **readability** of the code specified by `$ARGUMENTS`. Apply eight targeted transformations that make code easier to scan, understand, and maintain:
 
 - **Flatten nesting**: guard clauses and early exits first, main logic at one indent level
 - **Extract inline complexity**: move complex inline data structures and closures into named variables or functions
 - **Rename for clarity**: names must be understandable in their surrounding context
 - **Group by cohesion**: cluster related lines together, separate groups with blank lines
 - **Comment only the why**: only when the reason cannot be expressed as code
+- **Organize enum-like declarations**: group related types or cases and order them by domain importance
+- **Separate case implementations**: keep each case's behavior in one clear, contiguous branch
 - **Order deliberately**: arrange code by what the reader needs to understand first
 
 ## When to Use
@@ -73,7 +75,22 @@ In-place edits that preserve identical behavior:
 - Add comments only when the reason cannot be expressed as code
 - Never add comments that reference this conversation or the changes being made
 
-### Step 6: Order Deliberately
+### Step 6: Organize Enum-like Declarations
+
+- Group related enum members, union variants, and lists of types or cases together, using blank lines to separate groups
+- Order groups and their members by domain importance: core cases first, supporting and exceptional cases later
+- Infer importance from domain meaning and surrounding code, rather than sorting alphabetically
+- Preserve numeric values, serialization, iteration order, and execution precedence. If declaration order affects behavior, retain the required order
+
+### Step 7: Separate Case Implementations
+
+- Find case-specific logic scattered across repeated checks or interleaved with other cases
+- Consolidate each case's implementation into one contiguous, visibly distinct branch
+- Prefer early-return branches when they keep each case self-contained; otherwise use explicit `if/else` or `match/switch` structures
+- Put genuinely shared work before or after case handling only when execution order permits. Do not introduce an early return that skips shared work
+- Preserve condition evaluation, branch precedence, side-effect order, and fallback behavior. Do not turn independent conditions into mutually exclusive cases
+
+### Step 8: Order Deliberately
 
 Apply as the final step after all other changes:
 
@@ -84,7 +101,7 @@ Apply as the final step after all other changes:
 
 ## Principles
 
-1. **Never change logic**: only flatten, extract, rename, group, comment, and reorder
+1. **Preserve behavior**: flatten, extract, rename, group, comment, reorder, and restructure case handling without changing values, conditions, or observable execution order
 2. **Verify identical behavior**: mentally confirm nothing changes functionally
 3. **No conversation references**: never add comments about the refactoring itself
 4. **Why over what**: explain design decisions, not code mechanics
@@ -342,6 +359,78 @@ Good: explaining a non-obvious reason:
 // prefer reactivation over new account to retain history
 user.status = 'active'
 ```
+
+### Organize enum-like declarations
+
+Bad: core actions, lifecycle actions, and the fallback are interleaved:
+
+```
+enum DocumentAction
+  Unknown = 0
+  Archive = 4
+  Publish = 2
+  Restore = 5
+  Save = 1
+  Export = 3
+```
+
+Good: related actions are grouped, with core actions first and the fallback last:
+
+```
+enum DocumentAction
+  Save = 1
+  Publish = 2
+  Export = 3
+
+  Archive = 4
+  Restore = 5
+
+  Unknown = 0
+```
+
+The explicit values stay unchanged. This reordering assumes declaration order is not observable through iteration or serialization.
+
+### Separate case implementations
+
+Bad: the reader must connect two distant checks to understand each case:
+
+```
+execute(command)
+  kind = command.kind
+  if kind == 'publish'
+    payload = preparePublication(command)
+  else if kind == 'preview'
+    payload = buildPreview(command)
+  else
+    throw 'unsupported command'
+
+  if kind == 'publish'
+    sendPublication(payload)
+    return 'published'
+  else
+    showPreview(payload)
+    return 'previewed'
+```
+
+Good: each case reads from preparation through completion in one block, with early returns keeping the branches flat:
+
+```
+execute(command)
+  kind = command.kind
+  if kind == 'publish'
+    payload = preparePublication(command)
+    sendPublication(payload)
+    return 'published'
+
+  if kind == 'preview'
+    payload = buildPreview(command)
+    showPreview(payload)
+    return 'previewed'
+
+  throw 'unsupported command'
+```
+
+When cases must rejoin for shared work, use an explicit `if/else` or `match/switch` with each case's implementation together in its branch.
 
 ### Order deliberately
 
