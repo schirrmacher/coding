@@ -18,7 +18,7 @@ Complexity reduction framework.
 Deeply think and reduce the complexity of the code specified by `$ARGUMENTS` (a file, snippet, or reference from context). This goes past a cleanup pass. It questions whether each step, each piece of state, and each location is justified at all.
 
 Related but distinct:
-- **`/improve-readability`** rearranges code for clarity without changing what it does.
+- **`/readable`** rearranges code for clarity without changing what it does.
 - **`/simplify`** cleans up the diff for reuse and efficiency.
 - **`/reduce`** asks the harder question: *should this code exist at all, in this shape, in this place?*
 

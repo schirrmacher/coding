@@ -1,8 +1,8 @@
 ---
-name: improve-readability
+name: readable
 description: Improve code readability by flattening nesting, extracting inline complexity, clarifying names, and ordering code by importance. Group enum-like declarations logically and keep each case's implementation in a distinct block.
 triggers:
-  - phrase: "/improve-readability"
+  - phrase: "/readable"
   - phrase: "improve readability"
   - phrase: "make this more readable"
   - phrase: "clean up this code"
@@ -10,7 +10,7 @@ triggers:
   - phrase: "refactor for clarity"
 ---
 
-# Improve Readability
+# Readable
 
 Code clarity framework.
 
@@ -29,7 +29,7 @@ Improve the **readability** of the code specified by `$ARGUMENTS`. Apply eight t
 
 ## When to Use
 
-1. **Manual invocation**: user types `/improve-readability <file|code-target>`
+1. **Manual invocation**: user types `/readable <file|code-target>`
 2. **Post-implementation**: user asks to "clean up" or "make this more readable"
 3. **Proactive**: user says "flatten nesting", "refactor for clarity", or "improve readability"
 
