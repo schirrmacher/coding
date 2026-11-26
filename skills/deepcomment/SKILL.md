@@ -1,6 +1,6 @@
 ---
 name: deepcomment
-description: Challenge every comment in the target and keep only the ones the code cannot say for itself. Deletes comments that restate the code, rewrites "what" into "why", tightens the survivors, and preserves warnings, contracts, and provenance. Governing rule: a comment must not outweigh the code it describes. Edits in place; defaults to the current unstaged changes.
+description: Audit comments with no comments as the default. Delete noise, retain only useful non-obvious information or required content, and match surviving comments to surrounding style. Edits in place; defaults to the current unstaged changes.
 triggers:
   - phrase: "/deepcomment"
   - phrase: "review the comments"
@@ -12,17 +12,7 @@ triggers:
 
 # Deep Comment
 
-Comment audit.
-
-## Purpose
-
-A comment earns its place only when it says something the code cannot. A comment that restates the code is worse than no comment: it is extra to read, and it drifts out of sync the moment the code changes, at which point it actively lies.
-
-So challenge every comment against one test. *Could a competent reader derive this from the code itself?* If yes, cut it. If no, it is carrying real information; keep it, and tighten it to just that. The result is code where the few remaining comments are all signal.
-
-Governing rule, above all others: **a comment must not outweigh the code it describes.** A three-line comment over a one-line statement is a defect regardless of how well written it is.
-
-One-shot on a target the user points at. Edit in place, report what changed, then answer normally.
+**No comments by default.** Keep a comment only when removing it would lose useful, non-obvious information needed to understand, use, or safely change the code. An entirely comment-free result is valid.
 
 ## Target
 
@@ -30,83 +20,40 @@ Resolve in this order:
 
 1. **File / class / function given** → challenge the comments there, edit in place.
 2. **Code pasted or quoted in the message** → return the cleaned version in chat, nothing else.
-3. **No target** → the comments in the current unstaged/uncommitted changes (`git diff`). The default is to review the comments the user just wrote.
+3. **No target** → the comments in the current unstaged changes (`git diff`).
 
-Comment-only edits are low-risk and git holds the recovery path, so edit in place and report every deletion for review via `git diff`. For a wholly untracked file with no committed baseline, show the result and confirm before overwriting.
+Edit in place and make every deletion reviewable via `git diff`. For a wholly untracked file with no committed baseline, show the result and confirm before overwriting unless already authorized.
 
-## The Test: Does This Comment Earn Its Place?
+## Usefulness Test
 
-Run every comment through this classifier.
+For each comment, ask: **What useful information would the reader lose without this?** If there is no concrete answer, delete it.
 
-**Keep, because the code cannot say it.** Preserve these, byte-exact where you can:
+- Delete restatements, obvious explanations, decorative dividers, obsolete notes, dead commented-out code, and commentary about the conversation or current edit.
+- Reasons, warnings, contracts, and references earn no automatic exemption. Keep them only when they convey a relevant constraint, decision, caller obligation, or source the reader needs and cannot readily derive from the code. Judge API documentation from the caller's view, not from knowledge of the implementation.
+- Preserve required documentation, legal notices, and functional tool directives. These may have obligations or effects beyond helping a reader; retain required wording and syntax.
+- Do not turn redundant “what” into speculative “why.” Rewrite only when the rationale is supported by the code, existing documentation, or supplied context. Never invent intent to justify keeping a comment.
+- Check apparent contradictions before editing. Correct or remove a demonstrably stale comment; if it may expose a code defect or a still-valid constraint, report the uncertainty rather than erasing the evidence.
+- Tighten useful comments to the shortest wording that preserves the necessary information, including qualifications and references. There is no comment-to-code length ratio.
 
-- **Why / intent**: the reason behind a choice the code cannot express: why this algorithm over the obvious one, why this order, why this workaround exists.
-- **Warning / constraint / gotcha**: a non-obvious precondition, easy misuse, invariant, thread-safety note, or ordering requirement. Cutting one reads as permission to break it.
-- **Contract / API doc**: a public docstring documenting params, returns, and errors for callers who will never read the body.
-- **Provenance**: a link to a ticket/spec/RFC, the source of a magic number, a citation. The credibility lives in the reference.
+## Context and Style
 
-**Cut or convert, because the reader can derive it:**
+Read the enclosing function, class, or section and nearby comparable code before editing. Apply style consistency only after a comment passes the usefulness test.
 
-- **Restates the code** → delete. The line below already says it.
-- **Describes "what"** → rewrite as *why*, or make the code self-documenting (rename, extract) and drop the comment entirely.
-- **Outweighs its code** → tighten to the one thing the reader cannot derive.
-- **Drifted / obsolete** → contradicts the code → delete. A wrong comment costs more than a missing one.
-- **Dead commented-out code** → delete. Git holds the history.
-- **Noise** → decorative section-dividers, changelog and attribution lines, ownerless TODOs, comments referencing this conversation or the edit being made.
+Follow explicit project conventions. For choices they leave open, match nearby useful comments' tone, syntax, capitalization, punctuation, placement, and formatting. Keep each comment attached to the code it describes and check that its scope and claims still fit.
 
-## Workflow
+Do not copy clutter or defective conventions for consistency. Nearby comments are not a reason to add comments to otherwise clear code. Inspect surroundings outside the selected target read-only; report issues there with locations instead of expanding the edit.
 
-### Step 1: Inventory
+## Apply and Report
 
-Read the target and list every comment: its location, its text, and the code it annotates. Include inline comments, block comments, docstrings, doc-comments, and file/module headers.
+Review inline comments, block comments, docstrings, doc-comments, and file/module headers. Decide whether to delete, tighten, correct, or retain each one using the test above. Keep the audit focused on comments; suggest code improvements separately rather than introducing renames, extractions, or unrelated refactoring.
 
-### Step 2: Classify
+Re-read the result in context. Ensure edits preserve code behavior and directive placement. Use relevant checks if comments affect tooling or generated documentation.
 
-Run each comment through the test above. For each, decide: keep, tighten, convert to why, replace with better code, or delete. Say why.
-
-### Step 3: Challenge the "What"
-
-Delete pure restatements. For a comment that names *what* the code does, ask whether the reader needs *why* instead. If so, rewrite it. If the "what" was only unclear because of a poor name, fix the name or extract a well-named piece and drop the comment. The best comment is often no comment.
-
-### Step 4: Challenge Length
-
-Apply the governing rule to every survivor: **a comment must not outweigh the code it describes.** Cut a survivor down to the single fact the reader cannot reconstruct. If a comment is longer than the code it sits over, either the comment is padded or the code needs the explanation broken into the design itself.
-
-### Step 5: Preserve What the Code Cannot Say
-
-Warnings, contracts, provenance, and negations stay. Never trade a safety note or a precondition for brevity. When in doubt about a warning, keep it verbatim.
-
-### Step 6: Apply and Report
-
-Edit in place. Close with the report below. Do not narrate tool calls while working.
-
-## Principles
-
-1. **Comment the why, never the what.** The code already shows what it does.
-2. **Cut what the reader can derive; keep what would surprise them.** Predictable text carries no information.
-3. **A comment must not outweigh the code it describes.** Length is a defect on its own.
-4. **The best comment is often better code.** A rename or an extraction beats a paragraph.
-5. **A drifted comment is worse than none.** Delete on contradiction.
-6. **Never delete warnings, contracts, provenance, or negations.** A flipped or missing constraint costs far more than any line saved.
-7. **Edit in place; git is the undo.** Report every change.
-8. **Evidence-based.** Every cut points at a concrete comment at its location.
-
-## Report
-
-Close with a compact report, and nothing else:
-
-```
-Comments: 14 → 5. Reviewed src/orders/checkout.ts.
-Deleted: 8 restatements, 1 commented-out block.
-Tightened: 3 down to the why.
-Kept untouched: the overdraft precondition on withdraw(), the CVE link on sanitize().
-```
-
-Name every comment you preserved, so the user can see the safety-critical ones survived.
+Except for pasted-code targets, close with a compact report: the target, what was deleted or changed, which comments remain and why, and any unresolved findings with locations. Distinguish checks run from inspection. Do not manufacture comments to fill a report category.
 
 ## Examples
 
-**Delete restatement.** The comment says nothing the line below doesn't:
+**Delete an obvious restatement.**
 
 ```
 // increment the counter
@@ -119,7 +66,7 @@ counter++
 counter++
 ```
 
-**Convert what into why.** The "what" is obvious; the "why" is not:
+**Delete instead of inventing rationale.** Nothing here establishes why three attempts were chosen; do not invent a gateway failure explanation.
 
 ```
 // retry three times
@@ -129,58 +76,49 @@ for (let i = 0; i < 3; i++) { ... }
 →
 
 ```
-// the gateway drops the first connection after an idle period, so retry covers the reconnect
 for (let i = 0; i < 3; i++) { ... }
 ```
 
-**Tighten an overweight comment.** Four lines of prose over one statement:
+**Delete an explanation of a standard operation.** Explaining set membership adds no project-specific information here.
 
 ```
-// We use a Set here instead of an array because we need to check
-// membership frequently and arrays would be O(n) for each lookup,
-// which would make the whole loop O(n^2) and too slow for large
-// inputs, so a Set gives us O(1) membership checks instead.
+// Use a Set for O(1) membership checks.
 const seen = new Set()
 ```
 
 →
 
 ```
-// Set, not array: membership is checked per-iteration, so keep it O(1)
 const seen = new Set()
 ```
 
-**Keep the warning verbatim.** No brevity is worth blurring a precondition. This survives untouched:
+**Keep a verified constraint.** If migration documentation confirms this ordering requirement, removing the comment would hide a corruption risk:
 
 ```
-// Must run AFTER migrate(): reads columns that migrate() adds.
+// Must run after migrate(): reads columns it adds.
 // Reordering silently corrupts existing rows.
 backfill(db)
 ```
 
-**Delete commented-out code.** Git holds the history:
+**Preserve a functional directive.** In a type test, this comment makes the expected diagnostic part of the test:
 
-```
-// const legacyRate = 0.05
-// return amount * legacyRate
-return amount * taxRate(region)
-```
-
-→
-
-```
-return amount * taxRate(region)
+```ts
+// @ts-expect-error -- null is not a valid user ID
+loadUser(null)
 ```
 
-**Replace the comment with self-documenting code.** The comment exists only to decode a bad name:
+**Match surrounding style after establishing usefulness.** Nearby useful comments use sentence-case line comments above the affected statement. Given a documented provider limit, tighten and align this comment:
 
 ```
-// d is the number of days until the subscription expires
-if (d < 7) notify(user)
+/* IMPORTANT: we have to cap batches at 100 because the provider rejects larger requests!!! */
+sendBatch(items)
 ```
 
 →
 
 ```
-if (daysUntilExpiry < 7) notify(user)
+// The provider rejects batches over 100 items.
+sendBatch(items)
 ```
+
+Leave nearby comments outside the target unchanged.
